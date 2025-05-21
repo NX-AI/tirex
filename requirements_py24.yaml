@@ -1,0 +1,28 @@
+name: tirex
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - cuda=12.4
+  - cuda-nvcc=12.4
+  - gxx_linux-64=11.2.0
+  - python=3.11
+  - pip #=23.3.2
+  - pytorch=2.4.0
+  - pytorch-cuda=12.4
+  - torchvision #=0.17.0
+  - cmake #=3.28.2
+  - ninja
+  - cuda-cccl=12.4
+  - cuda-toolkit=12.4
+  - pip:
+      - xlstm
+      - lightning
+      - numpy
+      - pandas
+      - dacite
+#      - gluonts      # needed for gluonts output type
+#      - datasets     # needed for hf-datasets output type
+#      - ipykernel    # needed for example notebooks

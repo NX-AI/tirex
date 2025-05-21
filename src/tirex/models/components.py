@@ -1,0 +1,116 @@
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, Tuple
+import torch
+
+SCALER_STATE = "scaler_state"
+
+
+class ResidualBlock(torch.nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        h_dim: int,
+        out_dim: int,
+        dropout: float = 0,
+    ) -> None:
+        super().__init__()
+        self.dropout = torch.nn.Dropout(dropout)
+        self.hidden_layer = torch.nn.Linear(in_dim, h_dim)
+        self.output_layer = torch.nn.Linear(h_dim, out_dim)
+        self.residual_layer = torch.nn.Linear(in_dim, out_dim)
+        self.act = torch.nn.ReLU()
+
+    def forward(self, x: torch.Tensor):
+        hid = self.act(self.hidden_layer(x))
+        out = self.output_layer(hid)
+        res = self.residual_layer(x)
+        out = out + res
+        return out
+
+
+@dataclass
+class StandardScaler:
+    eps: float = 1e-5
+    nan_loc: float = 0.0
+
+    def scale(
+        self,
+        x: torch.Tensor,
+        loc_scale: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        if loc_scale is None:
+            loc = torch.nan_to_num(torch.nanmean(x, dim=-1, keepdim=True), nan=self.nan_loc)
+            scale = torch.nan_to_num(
+                torch.nanmean((x - loc).square(), dim=-1, keepdim=True).sqrt(), nan=1.0
+            )
+            scale = torch.where(scale == 0, torch.abs(loc) + self.eps, scale)
+        else:
+            loc, scale = loc_scale
+
+        return ((x - loc) / scale), (loc, scale)
+
+    def re_scale(
+        self,
+        x: torch.Tensor,
+        loc_scale: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        loc, scale = loc_scale
+        return x * scale + loc
+
+
+@dataclass
+class _Patcher:
+    patch_size: int
+    patch_stride: int
+    left_pad: bool
+    
+    def __post_init__(self):
+        assert self.patch_size % self.patch_stride == 0
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        assert x.ndim == 2
+        length = x.shape[-1]
+
+        if length < self.patch_size or (length % self.patch_stride != 0):
+            if length < self.patch_size:
+                padding_size = (
+                    *x.shape[:-1],
+                    self.patch_size - (length % self.patch_size),
+                )
+            else:
+                padding_size = (
+                    *x.shape[:-1],
+                    self.patch_stride - (length % self.patch_stride),
+                )            
+            padding = torch.full(size=padding_size, fill_value=torch.nan, dtype=x.dtype, device=x.device)
+            if self.left_pad:
+                x = torch.concat((padding, x), dim=-1)
+            else:
+                x = torch.concat((x, padding), dim=-1)
+
+        x = x.unfold(dimension=-1, size=self.patch_size, step=self.patch_stride)
+        return x
+
+
+@dataclass
+class PatchedUniTokenizer:
+    patch_size: int
+    scaler: Any = field(default_factory=StandardScaler)
+    patch_stride: Optional[int] = None
+
+
+    def __post_init__(self):
+        if self.patch_stride is None:
+            self.patch_stride = self.patch_size
+        self.patcher = _Patcher(self.patch_size, self.patch_stride, left_pad=True)
+
+    def context_input_transform(self, data: torch.Tensor):
+        assert data.ndim == 2
+        data, scale_state = self.scaler.scale(data)
+        return self.patcher(data), {SCALER_STATE: scale_state}
+
+
+    def output_transform(self, data: torch.Tensor, tokenizer_state: Dict):
+        data_shape = data.shape
+        data = self.scaler.re_scale(data.reshape(data_shape[0], -1), tokenizer_state[SCALER_STATE]).view(*data_shape)
+        return data
