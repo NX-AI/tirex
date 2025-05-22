@@ -2,12 +2,12 @@ import logging
 from typing import List, Optional, Tuple
 import torch
 
-from input_adapter import ForecastModel
+from ..api_adapter.forecast import ForecastModel
 
 
 class TensorQuantileUniPredictMixin(ForecastModel):
     
-    def _predict_tensor(
+    def _forecast_tensor(
         self,
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
@@ -16,7 +16,7 @@ class TensorQuantileUniPredictMixin(ForecastModel):
         raise NotImplemented("Not implemente!")
         
 
-    def _predict_quantiles(
+    def _forecast_quantiles(
         self,
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
@@ -24,7 +24,7 @@ class TensorQuantileUniPredictMixin(ForecastModel):
         **predict_kwargs,
     ) -> Tuple[torch.Tensor, torch.Tensor]:            
         predictions = (
-            self._predict_tensor(context, prediction_length=prediction_length, **predict_kwargs)
+            self._forecast_tensor(context, prediction_length=prediction_length, **predict_kwargs)
             .detach()
             .swapaxes(1, 2)
         )

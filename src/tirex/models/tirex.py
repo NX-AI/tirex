@@ -2,18 +2,20 @@ from abc import ABC
 from dataclasses import dataclass
 from collections import deque
 import logging
+import os
 from typing import Dict, List, Optional, Tuple
+import warnings
 from dacite import from_dict, Config
 import lightning as L
 import torch
 
 #from models.txlstm.model.covert import LoadConvertedCheckpointMixin
 
-from base import PretrainedModel
+from ..base import PretrainedModel
 
-from models.mixed_stack import xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
-from models.components import ResidualBlock, PatchedUniTokenizer
-from models.predict_utils import TensorQuantileUniPredictMixin
+from .mixed_stack import xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
+from .components import ResidualBlock, PatchedUniTokenizer
+from .predict_utils import TensorQuantileUniPredictMixin
 
 
 LOGGER = logging.getLogger()
@@ -65,7 +67,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
     
     @classmethod
     def register_name(cls):
-        return "tirex"
+        return "test-model"
 
     def init_block(self, block_kwargs):
         config = from_dict(xLSTMMixedLargeConfig, block_kwargs)
@@ -109,12 +111,12 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         return quantile_preds, hidden_states
 
 
-    def _predict_tensor(  # type: ignore[override]
+    def _forecast_tensor(  # type: ignore[override]
         self,
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
         max_context: Optional[int] = None,
-        output_device: str = "cpu"
+        output_device: str = "cpu",
     ) -> torch.Tensor:
         
         predictions = []
@@ -156,3 +158,24 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(
             dtype=torch.float32, device=output_device
         )
+
+
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        state_dict = checkpoint["state_dict"]
+        skip_cuda = bool(os.environ.get("TIREX_NO_CUDA", False))
+        if skip_cuda:
+            warnings.warn(
+                "You use TiRex without sLSTM cuda kernels! This might slow down the model considerably!"
+                "Set the envionrment variable TIREX_NO_CUDA to 0 to avoid this!"
+            )
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                if "slstm_layer.slstm_cell._recurrent_kernel_" in k:
+                    block_kwargs = self.model_config.block_kwargs
+                    if v.shape == torch.Size([block_kwargs.num_heads, block_kwargs.embedding_dim // block_kwargs.num_heads, block_kwargs.embedding_dim]):
+                        new_state_dict[k] = v.permute(0, 2, 1)  # Permute dimensions 1 and 2 for vanilla kernel
+                    else:
+                        new_state_dict[k] = v 
+                else:
+                    new_state_dict[k] = v
+        checkpoint["state_dict"] = new_state_dict

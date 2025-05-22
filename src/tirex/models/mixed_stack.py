@@ -2,6 +2,7 @@
 
 
 from dataclasses import dataclass, field
+import os
 
 import torch
 from torch import nn
@@ -14,6 +15,7 @@ from xlstm.blocks.slstm.layer import sLSTMLayer, sLSTMLayerConfig
 
 
 def init_cell(config: xLSTMLargeConfig, block_idx, num_blocks):
+    skip_cuda = bool(os.environ.get("TIREX_NO_CUDA", False))
     return sLSTMLayer(
         sLSTMLayerConfig(
             embedding_dim=config.embedding_dim,
@@ -22,7 +24,7 @@ def init_cell(config: xLSTMLargeConfig, block_idx, num_blocks):
             group_norm_weight=True,
             dropout=0,
             #CellConfig
-            backend="cuda",
+            backend="vanilla" if skip_cuda else "cuda",
             bias_init="powerlaw_blockdependent",
             recurrent_weight_init="zeros",
             num_gates=4,
