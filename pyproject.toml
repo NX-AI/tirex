@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tirex"
+version = "1.0.0"
+authors = [
+  { name="Andreas Auer", email="auer@ml.jku.at" },
+]
+description = "A pre-trained Time Series Forecasting Model base on a xLSTM architecture that supports zero-shot forecasting"
+readme = "README.md"
+license = {file="LICENSE"}
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
+dependencies = [
+    "torch",
+    "xlstm",
+    "einops",
+    "ninja",
+    "huggingface-hub",
+    "lightning",
+    "numpy",
+    "pandas",
+    "dacite",
+    "tqdm"
+]
+
+[project.optional-dependencies]
+notebooks = ["ipykernel"]
+gluonts = ["gluonts"]
+hf-dataset = ["datasets"]
+all = [
+    "ipykernel",
+    "gluonts",
+    "datasets"
+]
+
+# [tool.setuptools]
+# include_package_data = true
+
+[project.urls]
+Repository = "https://github.com/NX-AI/tirex"
+Issues = "https://github.com/NX-AI/tirex/issues"

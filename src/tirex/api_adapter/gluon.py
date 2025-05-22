@@ -2,7 +2,7 @@ from typing import List
 
 import torch 
 import pandas as pd
-from gluonts.dataset.common import Dataset as GluonDataset
+from gluonts.dataset.common import Dataset
 from gluonts.model.forecast import QuantileForecast
 from gluonts.dataset.field_names import FieldName
 
@@ -24,8 +24,8 @@ def _get_gluon_ts_map(**gluon_kwargs):
 
 
 def get_gluon_batches(
-    gluonDataset,
-    batch_size,
+    gluonDataset: Dataset,
+    batch_size: int,
     **gluon_kwargs
 ):
     return _batch_pad_iterable(map(_get_gluon_ts_map(**gluon_kwargs), gluonDataset), batch_size)

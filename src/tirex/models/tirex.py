@@ -13,7 +13,7 @@ import torch
 
 from ..base import PretrainedModel
 
-from .mixed_stack import xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
+from .mixed_stack import skip_cuda, xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
 from .components import ResidualBlock, PatchedUniTokenizer
 from .predict_utils import TensorQuantileUniPredictMixin
 
@@ -73,7 +73,6 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         config = from_dict(xLSTMMixedLargeConfig, block_kwargs)
         return xLSTMMixedLargeBlockStack(config), config
 
-
     @property
     def quantiles(self):
         return self.model.quantiles
@@ -82,7 +81,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
     def _forward_model_tokenized(
         self,
         input_token,
-        input_mask,
+        input_mask=None,
         rollouts=1,
     ):
         input_mask = (
@@ -142,7 +141,6 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
             with torch.no_grad():
                 prediction, _ = self._forward_model_tokenized(
                     input_token=tokenized_tensor,
-                    input_mask=torch.isnan(tokenized_tensor),
                 )
                 prediction = prediction[:, :, -1, :].to(tokenized_tensor) # predicted token
             prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
@@ -162,20 +160,23 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
 
     def on_load_checkpoint(self, checkpoint: dict) -> None:
         state_dict = checkpoint["state_dict"]
-        skip_cuda = bool(os.environ.get("TIREX_NO_CUDA", False))
-        if skip_cuda:
+        load_vanilla_kernel = skip_cuda()
+        if load_vanilla_kernel:
             warnings.warn(
                 "You use TiRex without sLSTM cuda kernels! This might slow down the model considerably!"
                 "Set the envionrment variable TIREX_NO_CUDA to 0 to avoid this!"
             )
+            block_kwargs = self.model_config.block_kwargs
+            head_dim = block_kwargs.embedding_dim // block_kwargs.num_heads
+            num_gates = 4
             new_state_dict = {}
             for k, v in state_dict.items():
                 if "slstm_layer.slstm_cell._recurrent_kernel_" in k:
-                    block_kwargs = self.model_config.block_kwargs
-                    if v.shape == torch.Size([block_kwargs.num_heads, block_kwargs.embedding_dim // block_kwargs.num_heads, block_kwargs.embedding_dim]):
-                        new_state_dict[k] = v.permute(0, 2, 1)  # Permute dimensions 1 and 2 for vanilla kernel
-                    else:
-                        new_state_dict[k] = v 
+                    new_state_dict[k] = v.permute(0, 2, 1) 
+                elif "slstm_layer.slstm_cell._bias_" in k:
+                    new_state_dict[k] = v.reshape(
+                        block_kwargs.num_heads, num_gates, head_dim
+                    ).permute(1, 0, 2).reshape(-1)
                 else:
                     new_state_dict[k] = v
-        checkpoint["state_dict"] = new_state_dict
+            checkpoint["state_dict"] = new_state_dict

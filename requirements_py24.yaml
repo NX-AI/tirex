@@ -23,6 +23,3 @@ dependencies:
       - numpy
       - pandas
       - dacite
-#      - gluonts      # needed for gluonts output type
-#      - datasets     # needed for hf-datasets output type
-#      - ipykernel    # needed for example notebooks
