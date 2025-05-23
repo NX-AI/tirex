@@ -20,7 +20,8 @@ def _batched_slice(full_batch, full_meta: Optional[List[dict]], batch_size: int)
         yield full_batch, full_meta if full_meta is not None else [{} for _ in range(len(full_batch))]
     else:
         for i in range(0, len(full_batch), batch_size):
-            yield full_batch[i : i + batch_size], (full_meta[i : i + batch_size] if full_meta is not None else [{} for _ in range(batch_size)])
+            batch = full_batch[i : i + batch_size]
+            yield batch, (full_meta[i : i + batch_size] if full_meta is not None else [{} for _ in range(len(batch))])
 
 def _batched(iterable: Iterable, n: int):
     it = iter(iterable)
