@@ -77,7 +77,6 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
     def quantiles(self):
         return self.model.quantiles
 
-
     def _forward_model_tokenized(
         self,
         input_token,
@@ -90,7 +89,10 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
             else torch.isnan(input_token).logical_not().to(input_token.dtype)
         )
         assert rollouts >= 1
-        batch_size, numb_token, token_dim = input_token.shape
+        bs, numb_ctx_token, token_dim = input_token.shape
+        if rollouts > 1:
+            input_token = torch.cat((input_token, torch.full((bs, rollouts - 1, token_dim), fill_value=torch.nan, device=input_token.device, dtype=input_token.dtype)), dim=1)
+            input_mask = torch.cat((input_mask, torch.full((bs, rollouts - 1, token_dim), fill_value=False, device=input_mask.device, dtype=input_mask.dtype)), dim=1)
         input_token = torch.nan_to_num(input_token, nan=self.nan_mask_value)
         input_embeds = self.input_patch_embedding(torch.cat((input_token, input_mask), dim=2))
 
@@ -115,7 +117,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
         max_context: Optional[int] = None,
-        output_device: str = "cpu",
+        max_accelarated_rollout_steps: int = 1
     ) -> torch.Tensor:
         
         predictions = []
@@ -138,15 +140,19 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
                                   fill_value=torch.nan, device=context.device, dtype=context.dtype)
                 context = torch.concat((pad, context), dim=1)
             tokenized_tensor, tokenizer_state = self.tokenizer.context_input_transform(context)
+            fut_rollouts = min(remaining, max_accelarated_rollout_steps)
             with torch.no_grad():
                 prediction, _ = self._forward_model_tokenized(
                     input_token=tokenized_tensor,
+                    rollouts=fut_rollouts
                 )
-                prediction = prediction[:, :, -1, :].to(tokenized_tensor) # predicted token
+                prediction = prediction[:, :, -fut_rollouts:, :].to(tokenized_tensor) # predicted token
+                #[bs, num_quantiles, num_predicted_token, output_patch_size]
             prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
+            prediction = prediction.flatten(start_dim=2)
 
             predictions.append(prediction)
-            remaining -= 1
+            remaining -= fut_rollouts
 
             if remaining <= 0:
                 break
@@ -154,7 +160,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
             context = torch.cat([context, torch.full_like(prediction[:, 0, :], fill_value=torch.nan)], dim=-1)
 
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(
-            dtype=torch.float32, device=output_device
+            dtype=torch.float32,
         )
 
 

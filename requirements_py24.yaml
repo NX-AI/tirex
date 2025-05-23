@@ -19,6 +19,8 @@ dependencies:
   - cuda-toolkit=12.4
   - pip:
       - xlstm
+      - einops
+      - huggingface-hub
       - lightning
       - numpy
       - pandas

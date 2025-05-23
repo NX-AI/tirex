@@ -19,6 +19,7 @@ classifiers = [
 keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
 dependencies = [
     "torch",
+    "torchvision",
     "xlstm",
     "einops",
     "ninja",
@@ -33,11 +34,11 @@ dependencies = [
 [project.optional-dependencies]
 notebooks = ["ipykernel"]
 gluonts = ["gluonts"]
-hf-dataset = ["datasets"]
+hfdataset = ["datasets"]
 all = [
     "ipykernel",
     "gluonts",
-    "datasets"
+    "datasets",
 ]
 
 # [tool.setuptools]

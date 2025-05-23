@@ -21,11 +21,13 @@ class TensorQuantileUniPredictMixin(ForecastModel):
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
         quantile_levels: List[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        output_device: str = "cpu",
         **predict_kwargs,
     ) -> Tuple[torch.Tensor, torch.Tensor]:            
         predictions = (
             self._forecast_tensor(context, prediction_length=prediction_length, **predict_kwargs)
             .detach()
+            .to(torch.device(output_device))
             .swapaxes(1, 2)
         )
 
@@ -38,10 +40,11 @@ class TensorQuantileUniPredictMixin(ForecastModel):
         else:
             if min(quantile_levels) < min(training_quantile_levels) or max(quantile_levels) > max(training_quantile_levels):
                 logging.warning(
-                    f"\tQuantiles to be predicted ({quantile_levels}) are not within the range of "
-                    f"quantiles that the model was trained on ({training_quantile_levels}). "
-                    "Quantile predictions will be set to the minimum/maximum levels at which the model"
-                    "was trained on. This may significantly affect the quality of the predictions."
+                    f"Requested quantile levels ({quantile_levels}) fall outside the range of "
+                    f"quantiles the model was trained on ({training_quantile_levels}). "
+                    "Predictions for out-of-range quantiles will be clamped to the nearest "
+                    "boundary of the trained quantiles (i.e., minimum or maximum trained level). "
+                    "This can significantly impact prediction accuracy, especially for extreme quantiles. "
                 )
             # Interpolate quantiles
             augmented_predictions = torch.cat(
