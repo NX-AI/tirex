@@ -46,7 +46,7 @@ data = torch.rand((5, 128)) # Sample Data (5 time series with length 128)
 forecast = model.forecast(context=data, prediction_length=64)
 ```
 
-We provide an extended quick start example in [examples/quick_start.ipynb](./examples/quick_start.ipynb).
+We provide an extended quick start example in [examples/quick_start_tirex.ipynb](./examples/quick_start_tirex.ipynb).
 This notebooks also show how to use the different input and output types of you time series data.
 
 ###  Example Notebooks
@@ -71,7 +71,7 @@ This CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that supporst CUDA Compute Capability 8.0 or later.
 If don have such a device or you have unresolveable problems with the kernels you can
 use a fallback implementation in pure Pytorch.
-**However this can slow down TiRex considerably!**
+**However this can slow down TiRex considerably and might degrade forecasting results!**
 To disable the CUDA kernels set the enironment variable
 ```bash
 export TIREX_NO_CUDA=1

@@ -169,7 +169,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         load_vanilla_kernel = skip_cuda()
         if load_vanilla_kernel:
             warnings.warn(
-                "You use TiRex without sLSTM cuda kernels! This might slow down the model considerably!"
+                "You use TiRex without sLSTM cuda kernels! This might slow down the model considerably and might degrade forecasting results!"
                 "Set the envionrment variable TIREX_NO_CUDA to 0 to avoid this!"
             )
             block_kwargs = self.model_config.block_kwargs
