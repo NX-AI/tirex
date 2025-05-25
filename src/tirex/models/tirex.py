@@ -1,4 +1,5 @@
 from abc import ABC
+from contextlib import redirect_stdout
 from dataclasses import dataclass
 from collections import deque
 import logging
@@ -9,12 +10,10 @@ from dacite import from_dict, Config
 import lightning as L
 import torch
 
-#from models.txlstm.model.covert import LoadConvertedCheckpointMixin
-
 from ..base import PretrainedModel
 
 from .mixed_stack import skip_cuda, xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
-from .components import ResidualBlock, PatchedUniTokenizer
+from .components import ResidualBlock, PatchedUniTokenizer, StreamToLogger
 from .predict_utils import TensorQuantileUniPredictMixin
 
 
@@ -30,7 +29,7 @@ class TiRexZeroConfig:
     input_ff_dim: int
 
 
-class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixin): #LoadConvertedCheckpointMixin
+class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixin):
     def __init__(self, model_config: dict, train_ctx_len = None):
         super().__init__()
         self.model_config: TiRexZeroConfig = from_dict(TiRexZeroConfig, model_config, config=Config(strict=True))
@@ -71,7 +70,10 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
 
     def init_block(self, block_kwargs):
         config = from_dict(xLSTMMixedLargeConfig, block_kwargs)
-        return xLSTMMixedLargeBlockStack(config), config
+        log_redirect = StreamToLogger(LOGGER, logging.INFO)
+        with redirect_stdout(log_redirect): # avoid excceive print statements of sLSTM compile
+            model = xLSTMMixedLargeBlockStack(config)
+        return model, config
 
     @property
     def quantiles(self):
@@ -112,7 +114,8 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         return quantile_preds, hidden_states
 
 
-    def _forecast_tensor(  # type: ignore[override]
+    @torch.inference_mode()
+    def _forecast_tensor(
         self,
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
@@ -169,7 +172,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
         load_vanilla_kernel = skip_cuda()
         if load_vanilla_kernel:
             warnings.warn(
-                "You use TiRex without sLSTM cuda kernels! This might slow down the model considerably and might degrade forecasting results!"
+                "You use TiRex without sLSTM CUDA kernels! This might slow down the model considerably and might degrade forecasting results!"
                 "Set the envionrment variable TIREX_NO_CUDA to 0 to avoid this!"
             )
             block_kwargs = self.model_config.block_kwargs
@@ -186,3 +189,12 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
                 else:
                     new_state_dict[k] = v
             checkpoint["state_dict"] = new_state_dict
+
+
+    def after_load_from_checkpoint(self):
+        if not skip_cuda() and self.device.type != "cuda":
+            warnings.warn(
+                f"You use TiRex with sLSTM CUDA kernels BUT DO NOT LOAD THE DEVICE ON A CUDA DEVICE (device type is {self.device.type})!"
+                "This is not supported and calls to the model will likley lead to an error if you dont move your model to a CUDA device!"
+                "If you want to run TiRex on CPU you need to disable sLSTM CUDA kernels but be aware of the downsides (see FAQ)"
+            )

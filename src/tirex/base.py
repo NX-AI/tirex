@@ -34,11 +34,16 @@ class PretrainedModel(ABC):
                 filename="model.ckpt",
                 **hf_kwargs
             )
-        return cls.load_from_checkpoint(checkpoint_path, map_location=device, **ckp_kwargs)
+        model = cls.load_from_checkpoint(checkpoint_path, map_location=device, **ckp_kwargs)
+        model.after_load_from_checkpoint()
+        return model
 
     @classmethod
     @abstractmethod
     def register_name(cls) -> str:
+        pass
+
+    def after_load_from_checkpoint(self):
         pass
 
 

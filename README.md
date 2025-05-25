@@ -20,10 +20,10 @@ TiRex is a 35M parameter pre-trained time series forecasting model bases on [xLS
 
 
 ## Installation
-Its best to install TiRex in an own conda envionrment. The respective conda depency file is [requirements_py24.yaml](./requirements_py24.yaml).
+Its best to install TiRex in an own conda envionrment. The respective conda depency file is [requirements_py26.yaml](./requirements_py26.yaml).
 
 ```sh
-# 1) Setup and activate conda env from ./requirements_py24.yaml
+# 1) Setup and activate conda env from ./requirements_py26.yaml
 
 # 2) Install Tirex
 pip install tirex

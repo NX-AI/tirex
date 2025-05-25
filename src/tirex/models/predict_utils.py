@@ -1,20 +1,27 @@
+from abc import abstractmethod
 import logging
 from typing import List, Optional, Tuple
 import torch
 
 from ..api_adapter.forecast import ForecastModel
 
+LOGGER = logging.getLogger()
 
 class TensorQuantileUniPredictMixin(ForecastModel):
     
+    @abstractmethod
     def _forecast_tensor(
         self,
         context: torch.Tensor,
         prediction_length: Optional[int] = None,
         **predict_kwargs,
     ) -> torch.Tensor:
-        raise NotImplemented("Not implemente!")
-        
+        pass
+    
+    @property
+    @abstractmethod
+    def quantiles(self):
+        pass
 
     def _forecast_quantiles(
         self,
@@ -22,14 +29,18 @@ class TensorQuantileUniPredictMixin(ForecastModel):
         prediction_length: Optional[int] = None,
         quantile_levels: List[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
         output_device: str = "cpu",
+        auto_cast: bool = False,
         **predict_kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:            
-        predictions = (
-            self._forecast_tensor(context, prediction_length=prediction_length, **predict_kwargs)
-            .detach()
-            .to(torch.device(output_device))
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        with torch.autocast(device_type=self.device.type, enabled=auto_cast):
+            predictions = self._forecast_tensor(
+                context=context,
+                prediction_length=prediction_length,
+                **predict_kwargs
+            ).detach()
+        predictions = predictions\
+            .to(torch.device(output_device))\
             .swapaxes(1, 2)
-        )
 
         training_quantile_levels = list(self.quantiles)
 

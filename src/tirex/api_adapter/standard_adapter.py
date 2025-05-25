@@ -51,9 +51,7 @@ def _batch_pad_iterable(iterable: Iterable[Tuple[torch.Tensor, dict]], batch_siz
 
 def get_batches(context: ContextType, batch_size: int):
     batches = None
-    if isinstance(context, List):
-        batches = _batch_pad_iterable(map(lambda x: (torch.Tensor(x), None), context), batch_size)
-    elif isinstance(context, torch.Tensor):
+    if isinstance(context, torch.Tensor):
         if context.ndim == 1:
             context = context.unsqueeze(0)
         assert context.ndim == 2
@@ -63,6 +61,8 @@ def get_batches(context: ContextType, batch_size: int):
             context = np.expand_dims(context, axis=0)
         assert context.ndim == 2
         batches = map(lambda x: (torch.Tensor(x[0]), x[1]), _batched_slice(context, None, batch_size))
+    elif isinstance(context, (List, Iterable)):
+        batches = _batch_pad_iterable(map(lambda x: (torch.Tensor(x), None), context), batch_size)
     if batches is None:
         raise ValueError(f"Context type {type(context)} not supported! Supported Types: {ContextType}")
     return batches
