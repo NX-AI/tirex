@@ -16,7 +16,7 @@ TiRex is a 35M parameter pre-trained time series forecasting model bases on [xLS
 
 - **Quantile Predicitons**: TiRex not only provides point estimates but provides quantile estimates.
 
-- **State-of-the-Art Performance over differen Horizion Lengths**: TiRex achieves top scores the divers time series forecastinb benchmarks GiftEval and ChronosZS. These benchmark sow that TiRex provides great performance for both -- long and short-term forecasting.
+- **State-of-the-art Performance over Long and Short Horizions**: TiRex achieves top scores the divers time series forecastinb benchmarks GiftEval and ChronosZS. These benchmark sow that TiRex provides great performance for both -- long and short-term forecasting.
 
 
 ## Installation
@@ -75,7 +75,7 @@ To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA K
  However, we plan to provide fine-tuning support in the future. If you are interested you can also get in touch with NxAI.
 
 - **When loading TiRex I get error messages regarding sLSTM or CUDA**:
-> Please check the section on [CUDA kernels](#cuda-kernels) in the Readme. In the case you can not fix your problem you can use a fallback implementation in pure Pytorch. However this can slow down TiRex considerably!
+> Please check the section on [CUDA kernels](#cuda-kernels) in the Readme. In the case you can not fix your problem you can use a fallback implementation in pure Pytorch. However this can slow down TiRex considerably and might degrade results!
 
 
 
@@ -84,7 +84,8 @@ To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA K
 Tirex uses custom CUDA kernels of the sLSTM.
 This CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that supporst CUDA Compute Capability 8.0 or later.
-If don have such a device or you have unresolveable problems with the kernels you can
+We also highly suggest to use the provided (conda enviornment spec)[./requirements_py26.yaml].
+If don't have such a device or you have unresolveable problems with the kernels you can
 use a fallback implementation in pure Pytorch.
 **However this can slow down TiRex considerably and might degrade forecasting results!**
 To disable the CUDA kernels set the enironment variable
