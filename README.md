@@ -67,8 +67,9 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 ## FAQ:
 
 - **Can i use TiRex on CPU**:
-> In general you can you TiRex with CPU. However this will slow down the model considerable and might impact forecast quality.
-To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels))
+> In general you can use TiRex with CPU. However this will slow down the model considerable and might impact forecast quality.
+To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
+If you are interested in running TiRex on more resource constrainted or embedded devices get in touch with NxAI.
 
 - **Can I train / finetune TiRex for my own data**
 > TiRex already provide state-of-the-art performance for zero-shot prediction, i.e. you can use it without training on your own data.
