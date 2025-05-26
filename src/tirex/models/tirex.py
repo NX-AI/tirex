@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+
 from abc import ABC
 from contextlib import redirect_stdout
 from dataclasses import dataclass

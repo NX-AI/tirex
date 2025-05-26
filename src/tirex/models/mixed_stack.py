@@ -1,5 +1,5 @@
-# Copyright (C) Authors, all rights reserved
-
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
 
 from dataclasses import dataclass, field
 import os

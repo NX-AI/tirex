@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+
 from abc import abstractmethod
 import logging
 from typing import List, Optional, Tuple

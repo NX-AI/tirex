@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+
 from typing import List
 
 import torch 

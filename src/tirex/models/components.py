@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 import torch

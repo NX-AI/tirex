@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+ 
 from abc import ABC, abstractmethod
 from typing import List, Literal
 

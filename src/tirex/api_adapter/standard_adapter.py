@@ -1,3 +1,6 @@
+# Copyright (C) 2025 NXAI GmbH
+# Andreas Auer
+
 from abc import ABC, abstractmethod
 import itertools
 from typing import List, Optional, Tuple, Union, Literal, Iterable, Iterator, Sequence
