@@ -66,7 +66,7 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
     
     @classmethod
     def register_name(cls):
-        return "test-model"
+        return "TiRex"
 
     def init_block(self, block_kwargs):
         config = from_dict(xLSTMMixedLargeConfig, block_kwargs)
