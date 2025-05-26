@@ -12,15 +12,15 @@ TiRex is a 35M parameter pre-trained time series forecasting model bases on [xLS
 
 ### Key Facts:
 
-- **Zero-Shot Forecasting**: TiRex performns forecasting without any training on your data. Just download and forecast.
+- **Zero-Shot Forecasting**: TiRex performs forecasting without any training on your data. Just download and forecast.
 
 - **Quantile Predicitons**: TiRex not only provides point estimates but provides quantile estimates.
 
-- **State-of-the-art Performance over Long and Short Horizions**: TiRex achieves top scores the divers time series forecastinb benchmarks GiftEval and ChronosZS. These benchmark sow that TiRex provides great performance for both -- long and short-term forecasting.
+- **State-of-the-art Performance over Long and Short Horizions**: TiRex achieves top scores the divers time series forecastinb benchmarks GiftEval and ChronosZS. These benchmark show that TiRex provides great performance for both -- long and short-term forecasting.
 
 
 ## Installation
-Its best to install TiRex in an own conda envionrment. The respective conda depency file is [requirements_py26.yaml](./requirements_py26.yaml).
+Its best to install TiRex in an own conda environment. The respective conda dependency file is [requirements_py26.yaml](./requirements_py26.yaml).
 
 ```sh
 # 1) [Suggested] Setup and activate conda env from ./requirements_py26.yaml
@@ -56,9 +56,9 @@ forecast = model.forecast(context=data, prediction_length=64)
 ```
 
 We provide an extended quick start example in [examples/quick_start_tirex.ipynb](./examples/quick_start_tirex.ipynb).
-This notebooks also show how to use the different input and output types of you time series data.
+This notebook also shows how to use the different input and output types of you time series data.
 
-###  Example Notebooks
+    ###  Example Notebooks
 
 We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifteval.ipynb) and [Chronos-ZS](./examples/chronos_zs/chronos_zs.ipynb).
 
@@ -66,7 +66,7 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 
 ## FAQ:
 
-- **Can i use TiRex on CPU**:
+- **Can I use TiRex on CPU**:
 > In general you can use TiRex with CPU. However this will slow down the model considerable and might impact forecast quality.
 To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
 If you are interested in running TiRex on more resource constrainted or embedded devices get in touch with NxAI.
