@@ -23,12 +23,21 @@ TiRex is a 35M parameter pre-trained time series forecasting model bases on [xLS
 Its best to install TiRex in an own conda envionrment. The respective conda depency file is [requirements_py26.yaml](./requirements_py26.yaml).
 
 ```sh
-# 1) Setup and activate conda env from ./requirements_py26.yaml
+# 1) [Suggested] Setup and activate conda env from ./requirements_py26.yaml
+conda conda env create -f ./requirements_py26.yaml
+conda activate tirex
 
-# 2) Install Tirex
+# 2) [Mandatory] Install Tirex
+
+## 2a) Install from Github
+git clone github.com/NX-AI/tirex
+cd tirex
+pip install .
+
+# 2b) Instal from PyPi (Not yet supported)
 pip install tirex
 
-# Optional: Install also optional dependicies
+# 2) Optional: Install also optional dependicies
 pip install tirex[gluonts]      # enable gluonTS in/output API
 pip install tirex[hfdataset]    # enable HuggingFace datasets in/output API
 pip install tirex[notebooks]    # To run the example notebooks
@@ -41,7 +50,7 @@ pip install tirex[notebooks]    # To run the example notebooks
 import torch
 from tirex import load_model, ForecastModel
 
-model: ForecastModel = load_model("NX-AI/tirex")
+model: ForecastModel = load_model("NX-AI/TiRex")
 data = torch.rand((5, 128)) # Sample Data (5 time series with length 128)
 forecast = model.forecast(context=data, prediction_length=64)
 ```
@@ -57,12 +66,18 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 
 ## FAQ:
 
-- **When loading TiRex I get error messages**:
-> Please check the section on CUDA kernels in the Readme above. In the case you can not fix your problem you can use a fallback implementation in pure Pytorch. However this can slow down TiRex considerably!
+- **Can i use TiRex on CPU**:
+> In general you can you TiRex with CPU. However this will slow down the model considerable and might impact forecast quality.
+To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels))
 
 - **Can I train / finetune TiRex for my own data**
 > TiRex already provide state-of-the-art performance for zero-shot prediction, i.e. you can use it without training on your own data.
  However, we plan to provide fine-tuning support in the future. If you are interested you can also get in touch with NxAI.
+
+- **When loading TiRex I get error messages regarding sLSTM or CUDA**:
+> Please check the section on [CUDA kernels](#cuda-kernels) in the Readme. In the case you can not fix your problem you can use a fallback implementation in pure Pytorch. However this can slow down TiRex considerably!
+
+
 
 ## CUDA Kernels
 
