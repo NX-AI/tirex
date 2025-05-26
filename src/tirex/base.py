@@ -49,7 +49,24 @@ class PretrainedModel(ABC):
         pass
 
 
-def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=None):
+def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=None) -> PretrainedModel:
+    """
+    Loads a TiRex model.
+    This function attempts to load the specified model.
+
+    Args:
+        path (str): Hugging Face path to the model (e.g. NX-AI/TiRex)
+        device (str, optional): The device on which to load the model (e.g., "cuda:0", "cpu").
+                                If you want to use "cpu" you need to deacative the sLSTM CUDA kernels (check repository FAQ!).
+        hf_kwargs (dict, optional): Keyword arguments to pass to the Hugging Face Hub download method.
+        ckp_kwargs (dict, optional): Keyword arguments to pass when loading the checkpoint.
+
+    Returns:
+        PretrainedModel: The loaded model.
+
+    Examples:
+        model: ForecastModel = load_model("NX-AI/TiRex")
+    """
     try:
         _, model_id = parse_hf_repo_id(path).split("/")
     except:
