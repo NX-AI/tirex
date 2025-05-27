@@ -1,7 +1,8 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from tirex.api_adapter.forecast import _format_output, _gen_forecast, ForecastModel, get_batches
+
+from tirex.api_adapter.forecast import ForecastModel, _format_output, _gen_forecast, get_batches
 
 
 def fc_random_from_tensor(batch, prediction_length, **kwargs):
@@ -10,16 +11,18 @@ def fc_random_from_tensor(batch, prediction_length, **kwargs):
     return_val = torch.rand((B, prediction_length, 9))
     return return_val, return_val[:, :, 4]
 
+
 @pytest.fixture
 def dummy_fc_func():
     return fc_random_from_tensor
+
 
 class DummyForecaster(ForecastModel):
     def _forecast_quantiles(self, batch: torch.Tensor, **kwargs):
         return fc_random_from_tensor(batch, **kwargs)
 
-quantile_levels = list(np.linspace(0.1, 0.9, 9))
 
+quantile_levels = list(np.linspace(0.1, 0.9, 9))
 
 
 # ----- Tests: Output formatting -----
@@ -27,17 +30,18 @@ def test_format_output_shapes(dummy_fc_func):
     B, L = 2, 5
     PL = 10
     q, m = dummy_fc_func(torch.rand(B, L), prediction_length=PL)
-    out_q, out_m = _format_output(q, m, [{}]*B, quantile_levels, "torch")
+    out_q, out_m = _format_output(q, m, [{}] * B, quantile_levels, "torch")
     assert isinstance(out_q, torch.Tensor)
     assert isinstance(out_m, torch.Tensor)
     assert out_q.shape == (B, PL, len(quantile_levels))
     assert out_m.shape == (B, PL)
 
+
 def test_format_output_shapes(dummy_fc_func):
     B, L = 2, 5
     PL = 10
     q, m = dummy_fc_func(torch.rand(B, L), prediction_length=PL)
-    out_q, out_m = _format_output(q, m, [{}]*B, quantile_levels, "numpy")
+    out_q, out_m = _format_output(q, m, [{}] * B, quantile_levels, "numpy")
     assert isinstance(out_q, np.ndarray)
     assert isinstance(out_m, np.ndarray)
     assert out_q.shape == (B, PL, len(quantile_levels))
@@ -52,10 +56,13 @@ def test_gen_forecast_single_batch(dummy_fc_func):
     assert q.shape == (5, 10, 9)
     assert m.shape == (5, 10)
 
+
 def test_gen_forecast_iterator(dummy_fc_func):
     context = torch.rand((5, 20))
     batches = get_batches(context, batch_size=2)
-    iterator = _gen_forecast(dummy_fc_func, batches, "torch", quantile_levels, prediction_length=10, yield_per_batch=True)
+    iterator = _gen_forecast(
+        dummy_fc_func, batches, "torch", quantile_levels, prediction_length=10, yield_per_batch=True
+    )
     outputs = list(iterator)
     assert len(outputs) == 3
     for i, (q, m) in enumerate(outputs):
@@ -74,6 +81,7 @@ def test_forecast_with_variable_lengths():
     out_q, out_m = model.forecast(context, output_type="torch", prediction_length=10, batch_size=3)
     assert out_q.shape == (4, 10, 9)
     assert out_m.shape == (4, 10)
+
 
 def test_forecast_iterator_mode():
     model = DummyForecaster()

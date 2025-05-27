@@ -1,17 +1,13 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tirex"
 version = "1.0.0"
 authors = [
-  { name="Andreas Auer", email="auer@ml.jku.at" },
+  { name="Andreas Auer", email="andreas.auer@nx-ai.com" },
 ]
-description = "A pre-trained Time Series Forecasting Model base on a xLSTM architecture that supports zero-shot forecasting"
+description = "A pre-trained Time Series Forecasting Model based on xLSTM supporting zero-shot forecasting"
 readme = "README.md"
 license = {file="LICENSE"}
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -31,6 +27,10 @@ dependencies = [
     "tqdm"
 ]
 
+[project.urls]
+Repository = "https://github.com/NX-AI/tirex"
+Issues = "https://github.com/NX-AI/tirex/issues"
+
 [project.optional-dependencies]
 notebooks = ["ipykernel"]
 gluonts = ["gluonts"]
@@ -41,9 +41,54 @@ all = [
     "datasets",
 ]
 
-# [tool.setuptools]
-# include_package_data = true
+# build system
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[project.urls]
-Repository = "https://github.com/NX-AI/tirex"
-Issues = "https://github.com/NX-AI/tirex/issues"
+# docformatter
+[tool.docformatter]
+diff = false
+docstring-length = [40, 1000]
+in-place = true
+pre-summary-newline = true
+recursive = true
+wrap-summaries = 100
+wrap-descriptions = 100
+non-cap = ["TiRex", "xLSTM", "sLSTM"]
+
+# ruff
+[tool.ruff]
+exclude = [
+    ".eggs",
+    ".git",
+    ".ipynb_checkpoints",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "archive",
+]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = ["I001"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 18
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+section-order = ["future", "standard-library", "third-party", "first-party", "tirex", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+"tirex" = ["tirex"]

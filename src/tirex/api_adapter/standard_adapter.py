@@ -1,24 +1,22 @@
 # Copyright (C) 2025 NXAI GmbH
 # Andreas Auer
 
-from abc import ABC, abstractmethod
 import itertools
-from typing import List, Optional, Tuple, Union, Literal, Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
+from typing import Union
 
 import numpy as np
-import pandas as pd
 import torch
-
 
 ContextType = Union[
     torch.Tensor,
     np.ndarray,
-    List[torch.Tensor], 
-    List[np.ndarray], 
+    list[torch.Tensor],
+    list[np.ndarray],
 ]
 
 
-def _batched_slice(full_batch, full_meta: Optional[List[dict]], batch_size: int) -> Iterator[Tuple[Sequence, List[dict]]]:
+def _batched_slice(full_batch, full_meta: list[dict] | None, batch_size: int) -> Iterator[tuple[Sequence, list[dict]]]:
     if len(full_batch) <= batch_size:
         yield full_batch, full_meta if full_meta is not None else [{} for _ in range(len(full_batch))]
     else:
@@ -26,15 +24,16 @@ def _batched_slice(full_batch, full_meta: Optional[List[dict]], batch_size: int)
             batch = full_batch[i : i + batch_size]
             yield batch, (full_meta[i : i + batch_size] if full_meta is not None else [{} for _ in range(len(batch))])
 
+
 def _batched(iterable: Iterable, n: int):
     it = iter(iterable)
-    while (batch := tuple(itertools.islice(it, n))):
+    while batch := tuple(itertools.islice(it, n)):
         yield batch
 
 
-def _batch_pad_iterable(iterable: Iterable[Tuple[torch.Tensor, dict]], batch_size: int):
+def _batch_pad_iterable(iterable: Iterable[tuple[torch.Tensor, dict]], batch_size: int):
     for batch in _batched(iterable, batch_size):
-        #ctx_it_len, ctx_it_data, it_meta = itertools.tee(batch, 3)
+        # ctx_it_len, ctx_it_data, it_meta = itertools.tee(batch, 3)
         max_len = max(len(el[0]) for el in batch)
         padded_batch = []
         meta = []
@@ -43,13 +42,10 @@ def _batch_pad_iterable(iterable: Iterable[Tuple[torch.Tensor, dict]], batch_siz
             assert isinstance(sample, torch.Tensor)
             assert sample.ndim == 1
             assert len(sample) > 0, "Each sample needs to have a length > 0"
-            padding = torch.full(
-                size=(max_len - len(sample),), fill_value=torch.nan, device=sample.device
-            )
+            padding = torch.full(size=(max_len - len(sample),), fill_value=torch.nan, device=sample.device)
             padded_batch.append(torch.cat((padding, sample)))
             meta.append(el[1])
         yield torch.stack(padded_batch), meta
-
 
 
 def get_batches(context: ContextType, batch_size: int):
@@ -64,7 +60,7 @@ def get_batches(context: ContextType, batch_size: int):
             context = np.expand_dims(context, axis=0)
         assert context.ndim == 2
         batches = map(lambda x: (torch.Tensor(x[0]), x[1]), _batched_slice(context, None, batch_size))
-    elif isinstance(context, (List, Iterable)):
+    elif isinstance(context, (list, Iterable)):
         batches = _batch_pad_iterable(map(lambda x: (torch.Tensor(x), None), context), batch_size)
     if batches is None:
         raise ValueError(f"Context type {type(context)} not supported! Supported Types: {ContextType}")

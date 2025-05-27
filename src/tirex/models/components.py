@@ -2,7 +2,8 @@
 # Andreas Auer
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
+
 import torch
 
 SCALER_STATE = "scaler_state"
@@ -39,24 +40,18 @@ class StandardScaler:
     def scale(
         self,
         x: torch.Tensor,
-        loc_scale: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        loc_scale: tuple[torch.Tensor, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         if loc_scale is None:
             loc = torch.nan_to_num(torch.nanmean(x, dim=-1, keepdim=True), nan=self.nan_loc)
-            scale = torch.nan_to_num(
-                torch.nanmean((x - loc).square(), dim=-1, keepdim=True).sqrt(), nan=1.0
-            )
+            scale = torch.nan_to_num(torch.nanmean((x - loc).square(), dim=-1, keepdim=True).sqrt(), nan=1.0)
             scale = torch.where(scale == 0, torch.abs(loc) + self.eps, scale)
         else:
             loc, scale = loc_scale
 
         return ((x - loc) / scale), (loc, scale)
 
-    def re_scale(
-        self,
-        x: torch.Tensor,
-        loc_scale: Tuple[torch.Tensor, torch.Tensor]
-    ) -> torch.Tensor:
+    def re_scale(self, x: torch.Tensor, loc_scale: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         loc, scale = loc_scale
         return x * scale + loc
 
@@ -66,7 +61,7 @@ class _Patcher:
     patch_size: int
     patch_stride: int
     left_pad: bool
-    
+
     def __post_init__(self):
         assert self.patch_size % self.patch_stride == 0
 
@@ -84,7 +79,7 @@ class _Patcher:
                 padding_size = (
                     *x.shape[:-1],
                     self.patch_stride - (length % self.patch_stride),
-                )            
+                )
             padding = torch.full(size=padding_size, fill_value=torch.nan, dtype=x.dtype, device=x.device)
             if self.left_pad:
                 x = torch.concat((padding, x), dim=-1)
@@ -99,8 +94,7 @@ class _Patcher:
 class PatchedUniTokenizer:
     patch_size: int
     scaler: Any = field(default_factory=StandardScaler)
-    patch_stride: Optional[int] = None
-
+    patch_stride: int | None = None
 
     def __post_init__(self):
         if self.patch_stride is None:
@@ -112,43 +106,41 @@ class PatchedUniTokenizer:
         data, scale_state = self.scaler.scale(data)
         return self.patcher(data), {SCALER_STATE: scale_state}
 
-
-    def output_transform(self, data: torch.Tensor, tokenizer_state: Dict):
+    def output_transform(self, data: torch.Tensor, tokenizer_state: dict):
         data_shape = data.shape
         data = self.scaler.re_scale(data.reshape(data_shape[0], -1), tokenizer_state[SCALER_STATE]).view(*data_shape)
         return data
 
 
-
 class StreamToLogger:
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
+    """Fake file-like stream object that redirects writes to a logger
+    instance."""
+
     def __init__(self, logger, log_level):
         self.logger = logger
         self.log_level = log_level
-        self.linebuf = '' # Buffer for partial lines
+        self.linebuf = ""  # Buffer for partial lines
 
     def write(self, message):
         # Filter out empty messages (often from just a newline)
         if message.strip():
             self.linebuf += message
             # If the message contains a newline, process the full line
-            if '\n' in self.linebuf:
+            if "\n" in self.linebuf:
                 lines = self.linebuf.splitlines(keepends=True)
                 for line in lines:
-                    if line.endswith('\n'):
+                    if line.endswith("\n"):
                         # Log full lines without the trailing newline (logger adds its own)
-                        self.logger.log(self.log_level, line.rstrip('\n'))
+                        self.logger.log(self.log_level, line.rstrip("\n"))
                     else:
                         # Keep partial lines in buffer
                         self.linebuf = line
                         return
-                self.linebuf = '' # All lines processed
+                self.linebuf = ""  # All lines processed
             # If no newline, keep buffering
 
     def flush(self):
         # Log any remaining buffered content when flush is called
         if self.linebuf.strip():
-            self.logger.log(self.log_level, self.linebuf.rstrip('\n'))
-            self.linebuf = ''
+            self.logger.log(self.log_level, self.linebuf.rstrip("\n"))
+            self.linebuf = ""

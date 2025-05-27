@@ -1,17 +1,19 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from tirex.api_adapter.standard_adapter import _batched_slice, _batched, _batch_pad_iterable, get_batches
+
+from tirex.api_adapter.standard_adapter import _batch_pad_iterable, _batched, _batched_slice, get_batches
 
 
-
-@pytest.mark.parametrize("context", [
-    np.array([1.0, 2.0, 3.0]),
-    torch.tensor([1.0, 2.0, 3.0]),
-    [np.array([1.0, 2.0]), np.array([1.0, 5.0, 4.0])],
-    [torch.tensor([1.0, 2.0]), torch.tensor([1.0, 4.0, 4.0, 4.0])]
-
-])
+@pytest.mark.parametrize(
+    "context",
+    [
+        np.array([1.0, 2.0, 3.0]),
+        torch.tensor([1.0, 2.0, 3.0]),
+        [np.array([1.0, 2.0]), np.array([1.0, 5.0, 4.0])],
+        [torch.tensor([1.0, 2.0]), torch.tensor([1.0, 4.0, 4.0, 4.0])],
+    ],
+)
 
 # ----- Tests: Basic batching with Tensor -----
 
@@ -26,11 +28,13 @@ def test_single_sample_tensor():
     assert len(batches) == 1
     assert batches[0][0].shape == (1, 10)
 
+
 def test_fewer_samples_than_batchsize():
     context = torch.arange(6).reshape(2, 3)
     batches = list(get_batches(context, batch_size=5))
     assert len(batches) == 1
     assert batches[0][0].shape == (2, 3)
+
 
 def test_more_samples_than_batchsize():
     context = torch.arange(45).reshape(9, 5)
@@ -43,12 +47,13 @@ def test_more_samples_than_batchsize():
 def test_list_of_variable_length_arrays():
     context = [torch.arange(5), torch.arange(8), torch.arange(6)]
     batches = list(get_batches(context, batch_size=3))
-    assert len(batches) == 1    
+    assert len(batches) == 1
     batch, _ = next(iter(batches))
     assert isinstance(batch, torch.Tensor)
     assert batch.shape == (3, 8)  # Padded to max length 8
     assert torch.isnan(batch[0, 0:3]).all()  # Left padding
-    assert (batch[0, -5:] == torch.tensor([0,1,2,3,4])).all()
+    assert (batch[0, -5:] == torch.tensor([0, 1, 2, 3, 4])).all()
+
 
 def test_list_of_variable_length_arrays_more_than_batchsize_torch():
     context = [torch.arange(5), torch.arange(8), torch.arange(6), torch.arange(12), torch.arange(22)]
@@ -65,8 +70,8 @@ def test_list_of_variable_length_arrays_more_than_batchsize_torch():
     assert (batch_2[0, -12:] == torch.arange(12)).all()
 
 
-
 # ----- Tests: Basic batching with Numpy -----
+
 
 def test_single_sample_numpy():
     context = np.arange(10)
@@ -74,11 +79,13 @@ def test_single_sample_numpy():
     assert len(batches) == 1
     assert batches[0][0].shape == (1, 10)
 
+
 def test_fewer_samples_than_batchsize_np():
     context = np.arange(6).reshape(2, 3)
     batches = list(get_batches(context, batch_size=5))
     assert len(batches) == 1
     assert batches[0][0].shape == (2, 3)
+
 
 def test_more_samples_than_batchsize_np():
     context = np.arange(45).reshape(9, 5)
@@ -96,7 +103,7 @@ def test_list_of_variable_length_arrays_np():
     assert isinstance(batch, torch.Tensor)
     assert batch.shape == (3, 8)  # Padded to max length 8
     assert torch.isnan(batch[0, 0:3]).all()  # Left padding
-    assert (batch[0, -5:] == torch.tensor([0,1,2,3,4])).all()
+    assert (batch[0, -5:] == torch.tensor([0, 1, 2, 3, 4])).all()
 
 
 def test_list_of_variable_length_arrays_more_than_batchsize_np():
@@ -125,11 +132,13 @@ def test_batched_slice_basic():
     assert batches[-1][0] == [8, 9]
     assert batches[-1][1] == [{"id": 8}, {"id": 9}]
 
+
 def test_batched_slice_no_meta():
     data = list(range(3))
     batches = list(_batched_slice(data, None, 2))
     assert len(batches) == 2
     assert all(len(m) == len(d) for d, m in batches)
+
 
 # ----- Tests for _batched -----
 def test_batched_even_split():
@@ -138,11 +147,13 @@ def test_batched_even_split():
     assert len(batches) == 4
     assert all(len(batch) == 2 for batch in batches)
 
+
 def test_batched_uneven_split():
     data = list(range(5))
     batches = list(_batched(data, 2))
     assert all(len(batch) == 2 for batch in batches[0:-1])
     assert batches[-1] == (4,)
+
 
 # ----- Tests for _batch_pad_iterable -----
 def test_batch_pad_iterable_correct_padding():
@@ -159,13 +170,11 @@ def test_batch_pad_iterable_correct_padding():
     assert torch.isnan(padded_batch[2, :2]).all()
     assert padded_batch[2, 2].item() == 6.0
 
+
 def test_batch_pad_iterable_multiple_batches():
-    data = [
-        (torch.tensor([i + 1.0]), {}) for i in range(7)
-    ]
+    data = [(torch.tensor([i + 1.0]), {}) for i in range(7)]
     batches = list(_batch_pad_iterable(data, batch_size=3))
     assert len(batches) == 3
     for padded_batch, meta in batches:
         assert padded_batch.ndim == 2
         assert padded_batch.shape[1] == 1
-

@@ -1,26 +1,26 @@
 # Copyright (C) 2025 NXAI GmbH
 # Andreas Auer
 
-from abc import abstractmethod
 import logging
-from typing import List, Optional, Tuple
+from abc import abstractmethod
+
 import torch
 
 from ..api_adapter.forecast import ForecastModel
 
 LOGGER = logging.getLogger()
 
+
 class TensorQuantileUniPredictMixin(ForecastModel):
-    
     @abstractmethod
     def _forecast_tensor(
         self,
         context: torch.Tensor,
-        prediction_length: Optional[int] = None,
+        prediction_length: int | None = None,
         **predict_kwargs,
     ) -> torch.Tensor:
         pass
-    
+
     @property
     @abstractmethod
     def quantiles(self):
@@ -29,30 +29,26 @@ class TensorQuantileUniPredictMixin(ForecastModel):
     def _forecast_quantiles(
         self,
         context: torch.Tensor,
-        prediction_length: Optional[int] = None,
-        quantile_levels: List[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        prediction_length: int | None = None,
+        quantile_levels: list[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
         output_device: str = "cpu",
         auto_cast: bool = False,
         **predict_kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         with torch.autocast(device_type=self.device.type, enabled=auto_cast):
             predictions = self._forecast_tensor(
-                context=context,
-                prediction_length=prediction_length,
-                **predict_kwargs
+                context=context, prediction_length=prediction_length, **predict_kwargs
             ).detach()
-        predictions = predictions\
-            .to(torch.device(output_device))\
-            .swapaxes(1, 2)
+        predictions = predictions.to(torch.device(output_device)).swapaxes(1, 2)
 
         training_quantile_levels = list(self.quantiles)
 
         if set(quantile_levels).issubset(set(training_quantile_levels)):
-            quantiles = predictions[
-                ..., [training_quantile_levels.index(q) for q in quantile_levels]
-            ]
+            quantiles = predictions[..., [training_quantile_levels.index(q) for q in quantile_levels]]
         else:
-            if min(quantile_levels) < min(training_quantile_levels) or max(quantile_levels) > max(training_quantile_levels):
+            if min(quantile_levels) < min(training_quantile_levels) or max(quantile_levels) > max(
+                training_quantile_levels
+            ):
                 logging.warning(
                     f"Requested quantile levels ({quantile_levels}) fall outside the range of "
                     f"quantiles the model was trained on ({training_quantile_levels}). "

@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import math
-from functools import cached_property
+import os
+from collections.abc import Iterable, Iterator
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
-from typing import Iterable, Iterator
 
 import datasets
+import pyarrow.compute as pc
 from dotenv import load_dotenv
 from gluonts.dataset import DataEntry
 from gluonts.dataset.common import ProcessDataEntry
@@ -29,7 +30,6 @@ from gluonts.itertools import Map
 from gluonts.time_feature import norm_freq_str
 from gluonts.transform import Transformation
 from pandas.tseries.frequencies import to_offset
-import pyarrow.compute as pc
 from toolz import compose
 
 TEST_SPLIT = 0.1
@@ -45,7 +45,6 @@ M4_PRED_LENGTH_MAP = {
     # new version fix:
     "h": 48,
     "Y": 6,
-
 }
 
 PRED_LENGTH_MAP = {
@@ -102,9 +101,7 @@ class MultivariateToUnivariate(Transformation):
     def __init__(self, field):
         self.field = field
 
-    def __call__(
-        self, data_it: Iterable[DataEntry], is_train: bool = False
-    ) -> Iterator:
+    def __call__(self, data_it: Iterable[DataEntry], is_train: bool = False) -> Iterator:
         for data_entry in data_it:
             item_id = data_entry["item_id"]
             val_ls = list(data_entry[self.field])
@@ -125,9 +122,7 @@ class Dataset:
     ):
         load_dotenv()
         storage_path = Path(os.getenv(storage_env_var))
-        self.hf_dataset = datasets.load_from_disk(str(storage_path / name)).with_format(
-            "numpy"
-        )
+        self.hf_dataset = datasets.load_from_disk(str(storage_path / name)).with_format("numpy")
         process = ProcessDataEntry(
             self.freq,
             one_dim_target=self.target_dim == 1,
@@ -135,9 +130,7 @@ class Dataset:
 
         self.gluonts_dataset = Map(compose(process, itemize_start), self.hf_dataset)
         if to_univariate:
-            self.gluonts_dataset = MultivariateToUnivariate("target").apply(
-                self.gluonts_dataset
-            )
+            self.gluonts_dataset = MultivariateToUnivariate("target").apply(self.gluonts_dataset)
 
         self.term = Term(term)
         self.name = name
@@ -147,9 +140,7 @@ class Dataset:
         freq = norm_freq_str(to_offset(self.freq).name)
         if freq.endswith("E"):
             freq = freq[:-1]
-        pred_len = (
-            M4_PRED_LENGTH_MAP[freq] if "m4" in self.name else PRED_LENGTH_MAP[freq]
-        )
+        pred_len = M4_PRED_LENGTH_MAP[freq] if "m4" in self.name else PRED_LENGTH_MAP[freq]
         return self.term.multiplier * pred_len
 
     @cached_property
@@ -158,26 +149,13 @@ class Dataset:
 
     @cached_property
     def target_dim(self) -> int:
-        return (
-            target.shape[0]
-            if len((target := self.hf_dataset[0]["target"]).shape) > 1
-            else 1
-        )
+        return target.shape[0] if len((target := self.hf_dataset[0]["target"]).shape) > 1 else 1
 
     @cached_property
     def past_feat_dynamic_real_dim(self) -> int:
         if "past_feat_dynamic_real" not in self.hf_dataset[0]:
             return 0
-        elif (
-            len(
-                (
-                    past_feat_dynamic_real := self.hf_dataset[0][
-                        "past_feat_dynamic_real"
-                    ]
-                ).shape
-            )
-            > 1
-        ):
+        elif len((past_feat_dynamic_real := self.hf_dataset[0]["past_feat_dynamic_real"]).shape) > 1:
             return past_feat_dynamic_real.shape[0]
         else:
             return 1
@@ -192,11 +170,7 @@ class Dataset:
     @cached_property
     def _min_series_length(self) -> int:
         if self.hf_dataset[0]["target"].ndim > 1:
-            lengths = pc.list_value_length(
-                pc.list_flatten(
-                    pc.list_slice(self.hf_dataset.data.column("target"), 0, 1)
-                )
-            )
+            lengths = pc.list_value_length(pc.list_flatten(pc.list_slice(self.hf_dataset.data.column("target"), 0, 1)))
         else:
             lengths = pc.list_value_length(self.hf_dataset.data.column("target"))
         return min(lengths.to_numpy())
@@ -204,32 +178,24 @@ class Dataset:
     @cached_property
     def sum_series_length(self) -> int:
         if self.hf_dataset[0]["target"].ndim > 1:
-            lengths = pc.list_value_length(
-                pc.list_flatten(self.hf_dataset.data.column("target"))
-            )
+            lengths = pc.list_value_length(pc.list_flatten(self.hf_dataset.data.column("target")))
         else:
             lengths = pc.list_value_length(self.hf_dataset.data.column("target"))
         return sum(lengths.to_numpy())
 
     @property
     def training_dataset(self) -> TrainingDataset:
-        training_dataset, _ = split(
-            self.gluonts_dataset, offset=-self.prediction_length * (self.windows + 1)
-        )
+        training_dataset, _ = split(self.gluonts_dataset, offset=-self.prediction_length * (self.windows + 1))
         return training_dataset
 
     @property
     def validation_dataset(self) -> TrainingDataset:
-        validation_dataset, _ = split(
-            self.gluonts_dataset, offset=-self.prediction_length * self.windows
-        )
+        validation_dataset, _ = split(self.gluonts_dataset, offset=-self.prediction_length * self.windows)
         return validation_dataset
 
     @property
     def test_data(self) -> TestData:
-        _, test_template = split(
-            self.gluonts_dataset, offset=-self.prediction_length * self.windows
-        )
+        _, test_template = split(self.gluonts_dataset, offset=-self.prediction_length * self.windows)
         test_data = test_template.generate_instances(
             prediction_length=self.prediction_length,
             windows=self.windows,

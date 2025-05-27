@@ -1,36 +1,37 @@
 # Copyright (C) 2025 NXAI GmbH
 # Andreas Auer
- 
+
 from abc import ABC, abstractmethod
-from typing import List, Literal
+from typing import Literal
 
 import torch
 
-
-from .standard_adapter import get_batches, ContextType
+from .standard_adapter import ContextType, get_batches
 
 try:
-    from .gluon import get_gluon_batches, format_gluonts_output
+    from .gluon import format_gluonts_output, get_gluon_batches
+
     _GLUONTS_AVAILABLE = True
 except ImportError:
     _GLUONTS_AVAILABLE = False
 
 try:
     from .hf_data import get_hfdata_batches
+
     _HF_DATASETS_AVAILABLE = True
 except ImportError:
     _HF_DATASETS_AVAILABLE = False
 
 
-DEF_TARGET_COLUMN  = "target"
+DEF_TARGET_COLUMN = "target"
 DEF_META_COLUMNS = ("start", "item_id")
 
 
 def _format_output(
     quantiles: torch.Tensor,
     means: torch.Tensor,
-    sample_meta: List[dict],
-    quantile_levels: List[float],
+    sample_meta: list[dict],
+    quantile_levels: list[float],
     output_type: Literal["torch", "numpy", "gluonts"],
 ):
     if output_type == "torch":
@@ -39,13 +40,10 @@ def _format_output(
         return quantiles.cpu().numpy(), means.cpu().numpy()
     elif output_type == "gluonts":
         if not _GLUONTS_AVAILABLE:
-            raise ValueError(
-                "output_type glutonts needs GluonTs but GluonTS is not available (not installed)!"
-            )
+            raise ValueError("output_type glutonts needs GluonTs but GluonTS is not available (not installed)!")
         return format_gluonts_output(quantiles, means, sample_meta, quantile_levels)
     else:
         raise ValueError(f"Invalid output type: {output_type}")
-
 
 
 def _as_generator(batches, fc_func, quantile_levels, output_type, **predict_kwargs):
@@ -60,15 +58,7 @@ def _as_generator(batches, fc_func, quantile_levels, output_type, **predict_kwar
         )
 
 
-def _gen_forecast(
-    fc_func,
-    batches,
-    output_type,
-    quantile_levels,
-    yield_per_batch,
-    **predict_kwargs
-):
-    
+def _gen_forecast(fc_func, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs):
     if yield_per_batch:
         return _as_generator(batches, fc_func, quantile_levels, output_type, **predict_kwargs)
 
@@ -94,7 +84,7 @@ def _gen_forecast(
 
 
 def _common_forecast_doc():
-        common_doc = f"""
+    common_doc = f"""
         This method takes historical context data as input and outputs probabilistic forecasts.
 
         Args:
@@ -128,24 +118,22 @@ def _common_forecast_doc():
                   - If `output_type="numpy"`: `Tuple[numpy.ndarray, numpy.ndarray]` (quantiles, mean).
                   - If `output_type="gluonts"`: A `List[gluonts.model.forecast.Forecast]` of all forecasts.
         """
-        return common_doc
+    return common_doc
 
 
 class ForecastModel(ABC):
-    
     @abstractmethod
     def _forecast_quantiles(self, batch, **predict_kwargs):
         pass
-
 
     def forecast(
         self,
         context: ContextType,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: List[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
-        **predict_kwargs
+        **predict_kwargs,
     ):
         f"""
         {_common_forecast_doc}
@@ -159,20 +147,18 @@ class ForecastModel(ABC):
         assert batch_size >= 1, "Batch size must be >= 1"
         batches = get_batches(context, batch_size)
         return _gen_forecast(
-            self._forecast_quantiles, batches, output_type, quantile_levels,
-            yield_per_batch, **predict_kwargs
+            self._forecast_quantiles, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs
         )
-
 
     def forecast_gluon(
         self,
         gluonDataset,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: List[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
         data_kwargs: dict = {},
-        **predict_kwargs
+        **predict_kwargs,
     ):
         f"""
         {_common_forecast_doc()}
@@ -182,17 +168,14 @@ class ForecastModel(ABC):
                                                             historical time series data.
 
             data_kwargs (dict, optional): Additional keyword arguments passed to the
-                                          autogluon data processsing function.
+                                          autogluon data processing function.
         """
         assert batch_size >= 1, "Batch size must be >= 1"
         if not _GLUONTS_AVAILABLE:
-            raise ValueError(
-                "forecast_gluon glutonts needs GluonTs but GluonTS is not available (not installed)!"
-            )
+            raise ValueError("forecast_gluon glutonts needs GluonTs but GluonTS is not available (not installed)!")
         batches = get_gluon_batches(gluonDataset, batch_size, **data_kwargs)
         return _gen_forecast(
-            self._forecast_quantiles, batches, output_type, quantile_levels,
-            yield_per_batch, **predict_kwargs
+            self._forecast_quantiles, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs
         )
 
     def forecast_hfdata(
@@ -200,10 +183,10 @@ class ForecastModel(ABC):
         hf_dataset,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: List[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
         data_kwargs: dict = {},
-        **predict_kwargs      
+        **predict_kwargs,
     ):
         f"""
         {_common_forecast_doc()}
@@ -213,17 +196,14 @@ class ForecastModel(ABC):
                                            historical time series data.
 
             data_kwargs (dict, optional): Additional keyword arguments passed to the
-                                          datasets data processsing function.
+                                          datasets data processing function.
         """
         assert batch_size >= 1, "Batch size must be >= 1"
         if not _HF_DATASETS_AVAILABLE:
             raise ValueError(
-                "forecast_hfdata glutonts needs hugginface datasets but datasets is not available (not installed)!"
+                "forecast_hfdata glutonts needs HuggingFace datasets but datasets is not available (not installed)!"
             )
         batches = get_hfdata_batches(hf_dataset, batch_size, **data_kwargs)
         return _gen_forecast(
-            self._forecast_quantiles, batches, output_type, quantile_levels,
-            yield_per_batch, **predict_kwargs
+            self._forecast_quantiles, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs
         )
-
-
