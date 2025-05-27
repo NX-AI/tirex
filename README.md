@@ -78,39 +78,38 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 ## FAQ / Troubleshooting:
 
 - **Can I run TiRex on CPU?**:
-  At the moment CPU support **is experimental**.
-  Running on CPU will slow down the model considerable and might impact forecast results.
+  > At the moment CPU support **is experimental**.
+  Running on CPU will slow down the model considerable and might likely forecast results.
   To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
 
 - **Can I run TiRex on Windows?**:
-  We don't support Windows at the moment.
+  > We don't support Windows at the moment.
   You might still be able to run TiRex on Windows.
-  In this case you can skip te conda environment installation.
+  In this case you can skip the conda environment installation.
   For troubleshooting on windows you can find relevant discussion on the [xLSTM GitHub repository](https://github.com/NX-AI/xlstm/issues?q=is%3Aissue%20state%3Aopen%20windows)
 
 - **Can I run TiRex on macOS?**:
-  macOS is not officially supported, but in general you can TiRex on macOS.
-  In this case you can skip te conda environment installation as this targets CUDA which will likely not be supported by you system.
-  However MPS is not supported at the moment and CPU mode is only experimental.
+  > macOS is not officially supported yet, but TiRex can run on CPU (see above) and hence on macOS.
+ MPS has the same limitations as CPU and is also experimental.
 
 - **Can I run TiRex on Nvidia GPU with CUDA compute capability < 8.0?**:
-  The custom CUDA kernels require a GPU with CUDA compute capability >= 8.0.
-  To see section [CUDA Kernels](#cuda-kernels) for more details.
-  At the moment this **is experimental** and can result in NaNs or wrong predictions!
+  > The custom CUDA kernels require a GPU with CUDA compute capability >= 8.0.
+  You can deactiavte the custom CUDA kernels (see section [CUDA Kernels](#cuda-kernels) for more details).
+  However, at the moment this **is experimental** and can result in NaNs or degraded forecasts!
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
 
 - **Can I train / finetune TiRex for my own data?**:
-  TiRex already provide state-of-the-art performance for zero-shot prediction, that is you can use it without training on your own data.
+  > TiRex already provide state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
   However, we plan to provide fine-tuning support in the future.
   If you are interested in models fine-tuned on your data, get in touch with us.
 
 - **Error during the installation of the conda environment**:
-  If you encounter errors during installing of the conda environment your system most likely does not support CUDA.
+  > If you encounter errors during installing of the conda environment your system most likely does not support CUDA.
   Please skip the conda environment installation and install TiRex directly in a Python environment.
 
 - **When loading TiRex I get error messages regarding sLSTM or CUDA**:
-  Please check the section on [CUDA kernels](#cuda-kernels) in the Readme.
+  > Please check the section on [CUDA kernels](#cuda-kernels) in the Readme.
   In the case you can not fix problem you can use a fallback implementation in pure Pytorch.
   However, this can slow down TiRex considerably and might degrade results!
 
@@ -121,7 +120,7 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 Tirex uses custom CUDA kernels for the sLSTM cells.
 These CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 or later.
-We also highly suggest to use the provided (conda environment spec)[./requirements_py26.yaml].
+We also highly suggest to use the provided [conda environment spec](./requirements_py26.yaml).
 If you don't have such a device, or you have unresolvable problems with the kernels you can use a fallback implementation in pure Pytorch.
 **However, this is at the moment **EXPERIMENTAL**, **slows** down TiRex considerably and likely **degrade forecasting** results!**
 To disable the CUDA kernels set the environment variable
