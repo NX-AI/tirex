@@ -184,7 +184,19 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
             new_state_dict = {}
             for k, v in state_dict.items():
                 if "slstm_layer.slstm_cell._recurrent_kernel_" in k:
-                    new_state_dict[k] = v.permute(0, 2, 1) 
+                    new_state_dict[k] = v.reshape(
+                        block_kwargs.num_heads,
+                        head_dim,
+                        num_gates,
+                        head_dim,
+                    )\
+                    .permute(0, 2, 3, 1)\
+                    .reshape(
+                        block_kwargs.num_heads,
+                        num_gates * head_dim,
+                        head_dim,
+                    )
+                    #new_state_dict[k] = v.permute(0, 2, 1) 
                 elif "slstm_layer.slstm_cell._bias_" in k:
                     new_state_dict[k] = v.reshape(
                         block_kwargs.num_heads, num_gates, head_dim
