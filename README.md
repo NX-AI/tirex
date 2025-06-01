@@ -1,10 +1,10 @@
 # TiRex: Zero-Shot Forecasting across Long and Short Horizons
 
-[Paper - TBA]() | [TiRex Huggingface Model Card](https://huggingface.co/NX-AI/TiRex)
+[Paper](https://arxiv.org/abs/2505.23719) | [TiRex Huggingface Model Card](https://huggingface.co/NX-AI/TiRex)
 
 
 This repository provides the pre-trained forecasting model TiRex introduced in the paper
-[TiRex: Zero-Shot Forecasting across Long and Short Horizons with Enhanced In-Context Learning]().
+[TiRex: Zero-Shot Forecasting across Long and Short Horizons with Enhanced In-Context Learning](https://arxiv.org/abs/2505.23719).
 
 
 ## TiRex Model
@@ -64,6 +64,11 @@ forecast = model.forecast(context=data, prediction_length=64)
 
 We provide an extended quick start example in [examples/quick_start_tirex.ipynb](./examples/quick_start_tirex.ipynb).
 This notebook also shows how to use the different input and output types of you time series data.
+If you dont have suitable hardware you can run the the extended quick start example example also in Google Colab:
+
+<a target="_blank" href="https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open Quick Start In Colab"/>
+</a>
 
 ###  Example Notebooks
 
@@ -77,17 +82,22 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
   > At the moment CPU support **is experimental**.
   Running on CPU will slow down the model considerable and might likely forecast results.
   To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
+  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
 
 - **Can I run TiRex on Windows?**:
   > We don't support Windows at the moment.
   You might still be able to run TiRex on Windows.
   In this case you can skip the conda environment installation.
-  For troubleshooting on windows you can find relevant discussion on the [xLSTM GitHub repository](https://github.com/NX-AI/xlstm/issues?q=is%3Aissue%20state%3Aopen%20windows)
+  For troubleshooting on windows you can find relevant discussion on the [xLSTM GitHub repository](https://github.com/NX-AI/xlstm/issues?q=is%3Aissue%20state%3Aopen%20windows).
+  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
+
 
 - **Can I run TiRex on macOS?**:
   > macOS is not officially supported yet, but TiRex can run on CPU (see above) and hence on macOS.
  MPS has the same limitations as CPU and is also experimental.
+  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
+
 
 - **Can I run TiRex on Nvidia GPU with CUDA compute capability < 8.0?**:
   > The custom CUDA kernels require a GPU with CUDA compute capability >= 8.0.
@@ -159,7 +169,13 @@ os.environ['XLSTM_EXTRA_INCLUDE_PATHS']='/usr/local/include/cuda/:/usr/include/c
 If you use TiRex in your research, please cite our work:
 
 ```bibtex
-TBA
+@article{auerTiRexZeroShotForecasting2025,
+  title = {{{TiRex}}: {{Zero-Shot Forecasting Across Long}} and {{Short Horizons}} with {{Enhanced In-Context Learning}}},
+  author = {Auer, Andreas and Podest, Patrick and Klotz, Daniel and B{\"o}ck, Sebastian and Klambauer, G{\"u}nter and Hochreiter, Sepp},
+  journal = {ArXiv},
+  volume = {2505.23719},   
+  year = {2025}
+}
 ```
 
 
