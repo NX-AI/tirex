@@ -82,7 +82,7 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
   > At the moment CPU support **is experimental**.
   Running on CPU will slow down the model considerable and might likely forecast results.
   To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
-  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
+  You can also test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
 
 - **Can I run TiRex on Windows?**:
@@ -90,13 +90,13 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
   You might still be able to run TiRex on Windows.
   In this case you can skip the conda environment installation.
   For troubleshooting on windows you can find relevant discussion on the [xLSTM GitHub repository](https://github.com/NX-AI/xlstm/issues?q=is%3Aissue%20state%3Aopen%20windows).
-  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
+  You can also test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
 
 
 - **Can I run TiRex on macOS?**:
   > macOS is not officially supported yet, but TiRex can run on CPU (see above) and hence on macOS.
  MPS has the same limitations as CPU and is also experimental.
-  You can also test Test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
+  You can also test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
 
 
 - **Can I run TiRex on Nvidia GPU with CUDA compute capability < 8.0?**:
