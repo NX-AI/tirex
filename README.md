@@ -80,7 +80,7 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 
 - **Can I run TiRex on CPU?**:
   > At the moment CPU support **is experimental**.
-  Running on CPU will slow down the model considerable and might likely forecast results.
+  Running on CPU will slow down the model considerable and might likely degrade forecasting results.
   To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
   You can also test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
