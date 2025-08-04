@@ -70,4 +70,18 @@ def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=Non
     model_cls = PretrainedModel.REGISTRY.get(model_id, None)
     if model_cls is None:
         raise ValueError(f"Invalid model id {model_id}")
-    return model_cls.from_pretrained(path, device=device, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+    
+    # Load model with the correct device, mps handling added
+    if device == "cpu":
+        os.environ["TIREX_NO_CUDA"] = '1'
+        return model_cls.from_pretrained(path, device='cpu', hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+    elif device == "mps":
+        os.environ["TIREX_NO_CUDA"] = '1'
+        model = model_cls.from_pretrained(path, device='cpu', hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+        model = model.to(device)
+        return model
+    elif device.startswith('cuda'):
+        os.environ["TIREX_NO_CUDA"] = '0'
+        return model_cls.from_pretrained(path, device=device, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+    else:
+        raise ValueError(f"Invalid device {device}")
