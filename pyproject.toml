@@ -35,10 +35,12 @@ Issues = "https://github.com/NX-AI/tirex/issues"
 notebooks = ["ipykernel"]
 gluonts = ["gluonts"]
 hfdataset = ["datasets"]
+test = ["fev"]
 all = [
     "ipykernel",
     "gluonts",
     "datasets",
+    "fev",
 ]
 
 # build system
@@ -56,6 +58,15 @@ recursive = true
 wrap-summaries = 100
 wrap-descriptions = 100
 non-cap = ["TiRex", "xLSTM", "sLSTM"]
+
+# pytest
+[pytest]
+pythonpath = .
+log_cli = true
+log_cli_level = INFO
+log_format = %(asctime)s %(levelname)s %(message)s
+log_date_format = %Y-%m-%d %H:%M:%S
+
 
 # ruff
 [tool.ruff]
