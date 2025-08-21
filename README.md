@@ -30,9 +30,9 @@ It's best to install TiRex in the specified conda environment.
 The respective conda dependency file is [requirements_py26.yaml](./requirements_py26.yaml).
 
 ```sh
-# 1) Setup and activate conda env from ./requirements_py26.yaml
+# 1) Setup and activate conda env from .yaml (ONLY FOR CUDA, SKIP IF USE CPU)
 git clone github.com/NX-AI/tirex
-conda env create --file ./tirex/requirements_py26.yaml
+conda env create --file ./tirex/requirements_gpu.yaml
 conda activate tirex
 
 # 2) [Mandatory] Install Tirex

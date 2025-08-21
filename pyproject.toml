@@ -7,24 +7,25 @@ authors = [
 description = "A pre-trained Time Series Forecasting Model based on xLSTM supporting zero-shot forecasting"
 readme = "README.md"
 license = {file="LICENSE"}
-requires-python = ">=3.11"
+requires-python = "==3.11.*"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
+
 dependencies = [
-    "torch",
-    "torchvision",
-    "xlstm",
-    "einops",
-    "ninja",
-    "huggingface-hub",
-    "lightning",
-    "numpy",
-    "pandas",
-    "dacite",
-    "tqdm"
+    "torch==2.8.0",
+    "torchvision==0.23.0",
+    "xlstm==2.0.4",
+    "einops==0.8.1",
+    "ninja==1.13.0",
+    "huggingface-hub==0.34.4",
+    "lightning==2.5.3",
+    "numpy==2.1.2",
+    "pandas==2.3.1",
+    "tqdm==4.67.1",
+    "dacite==1.9.2" 
 ]
 
 [project.urls]
@@ -32,13 +33,13 @@ Repository = "https://github.com/NX-AI/tirex"
 Issues = "https://github.com/NX-AI/tirex/issues"
 
 [project.optional-dependencies]
-notebooks = ["ipykernel"]
-gluonts = ["gluonts"]
-hfdataset = ["datasets"]
+notebooks = ["ipykernel==6.30.1"]
+gluonts = ["gluonts==0.16.2"]
+hfdataset = ["datasets==3.6.0"]
 all = [
-    "ipykernel",
-    "gluonts",
-    "datasets",
+    "ipykernel==6.30.1",
+    "gluonts==0.16.2",
+    "datasets==3.6.0",
 ]
 
 # build system
