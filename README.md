@@ -27,7 +27,7 @@ TiRex is a 35M parameter pre-trained time series forecasting model based on [xLS
 TiRex is currently only tested on *Linux systems* and Nvidia GPUs with compute capability >= 8.0.
 If you want to use different systems, please check the [FAQ](#faq--troubleshooting).
 It's best to install TiRex in the specified conda environment.
-The respective conda dependency file is [requirements_py26.yaml](./requirements_py26.yaml).
+The respective conda dependency file is [requirements_gpu.yaml](./requirements_gpu.yaml).
 
 ```sh
 # 1) Setup and activate conda env from .yaml (ONLY FOR CUDA, SKIP IF USE CPU)
@@ -126,7 +126,7 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 Tirex uses custom CUDA kernels for the sLSTM cells.
 These CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 or later.
-We also highly suggest to use the provided [conda environment spec](./requirements_py26.yaml).
+We also highly suggest to use the provided [conda environment spec](./requirements_gpu.yaml).
 If you don't have such a device, or you have unresolvable problems with the kernels you can use a fallback implementation in pure Pytorch.
 **However, this is at the moment **EXPERIMENTAL**, **slows** down TiRex considerably and likely **degrade forecasting** results!**
 To disable the CUDA kernels set the environment variable
