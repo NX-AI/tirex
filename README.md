@@ -1,10 +1,10 @@
 # TiRex: Zero-Shot Forecasting across Long and Short Horizons
 
-[Paper](https://arxiv.org/abs/2505.23719) | [TiRex Huggingface Model Card](https://huggingface.co/NX-AI/TiRex)
+[Paper - TBA]() | [TiRex Huggingface Model Card](https://huggingface.co/NX-AI/TiRex)
 
 
 This repository provides the pre-trained forecasting model TiRex introduced in the paper
-[TiRex: Zero-Shot Forecasting across Long and Short Horizons with Enhanced In-Context Learning](https://arxiv.org/abs/2505.23719).
+[TiRex: Zero-Shot Forecasting across Long and Short Horizons with Enhanced In-Context Learning]().
 
 
 ## TiRex Model
