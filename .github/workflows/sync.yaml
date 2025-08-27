@@ -1,5 +1,9 @@
 name: Sync to Public Repo
 
+env:
+  SOURCE_REPO: NX-AI/tirex-internal
+  DESTINATION_URL: git@github.com:NX-AI/tirex.git
+
 on:
   push:
     branches:
@@ -8,7 +12,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+    if: ${{ github.repository == env.SOURCE_REPO }}
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v5
@@ -16,8 +20,6 @@ jobs:
           fetch-depth: 0
 
       - name: Configure SSH and Push to Destination
-        env:
-          DESTINATION_URL: git@github.com:NX-AI/tirex.git
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SYNC_DEPLOY_KEY }}" | base64 --decode > ~/.ssh/sync_deploy_key
