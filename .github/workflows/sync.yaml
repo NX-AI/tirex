@@ -1,9 +1,5 @@
 name: Sync to Public Repo
 
-env:
-  SOURCE_REPO: NX-AI/tirex-internal
-  DESTINATION_URL: git@github.com:NX-AI/tirex.git
-
 on:
   push:
     branches:
@@ -12,7 +8,11 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: ${{ github.repository == env.SOURCE_REPO }}
+
+    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+    env:
+      DESTINATION_URL: git@github.com:NX-AI/tirex.git
+
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v5
