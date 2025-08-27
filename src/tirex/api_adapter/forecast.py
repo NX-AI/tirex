@@ -8,20 +8,6 @@ import torch
 
 from .standard_adapter import ContextType, get_batches
 
-try:
-    from .gluon import format_gluonts_output, get_gluon_batches
-
-    _GLUONTS_AVAILABLE = True
-except ImportError:
-    _GLUONTS_AVAILABLE = False
-
-try:
-    from .hf_data import get_hfdata_batches
-
-    _HF_DATASETS_AVAILABLE = True
-except ImportError:
-    _HF_DATASETS_AVAILABLE = False
-
 
 DEF_TARGET_COLUMN = "target"
 DEF_META_COLUMNS = ("start", "item_id")
@@ -39,7 +25,9 @@ def _format_output(
     elif output_type == "numpy":
         return quantiles.cpu().numpy(), means.cpu().numpy()
     elif output_type == "gluonts":
-        if not _GLUONTS_AVAILABLE:
+        try:
+            from .gluon import format_gluonts_output
+        except ImportError:
             raise ValueError("output_type glutonts needs GluonTs but GluonTS is not available (not installed)!")
         return format_gluonts_output(quantiles, means, sample_meta, quantile_levels)
     else:
@@ -171,8 +159,11 @@ class ForecastModel(ABC):
                                           autogluon data processing function.
         """
         assert batch_size >= 1, "Batch size must be >= 1"
-        if not _GLUONTS_AVAILABLE:
+        try:
+            from .gluon import get_gluon_batches
+        except ImportError:
             raise ValueError("forecast_gluon glutonts needs GluonTs but GluonTS is not available (not installed)!")
+
         batches = get_gluon_batches(gluonDataset, batch_size, **data_kwargs)
         return _gen_forecast(
             self._forecast_quantiles, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs
@@ -199,10 +190,13 @@ class ForecastModel(ABC):
                                           datasets data processing function.
         """
         assert batch_size >= 1, "Batch size must be >= 1"
-        if not _HF_DATASETS_AVAILABLE:
+        try:
+            from .hf_data import get_hfdata_batches
+        except ImportError:
             raise ValueError(
                 "forecast_hfdata glutonts needs HuggingFace datasets but datasets is not available (not installed)!"
             )
+
         batches = get_hfdata_batches(hf_dataset, batch_size, **data_kwargs)
         return _gen_forecast(
             self._forecast_quantiles, batches, output_type, quantile_levels, yield_per_batch, **predict_kwargs
