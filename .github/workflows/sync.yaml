@@ -3,7 +3,7 @@ name: Sync to Public Repo
 on:
   push:
     branches:
-      - main
+      - sync-repo
 
 jobs:
   sync:
@@ -18,7 +18,7 @@ jobs:
       - name: Configure SSH and Push to Destination
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SYNC_DEPLOY_KEY }}
-          DESTINATION_URL: git@github.com:your-organization/destination-repo.git
+          DESTINATION_URL: git@github.com:NX-AI/tirex.git
         run: |
           echo "${{ secrets.SYNC_DEPLOY_KEY }}" | base64 --decode > ~/.ssh/sync_deploy_key
           chmod 600 ~/.ssh/sync_deploy_key
@@ -27,4 +27,4 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
           git remote add destination ${DESTINATION_URL}
-          git push destination main --force
+          git push destination sync-repo --force
