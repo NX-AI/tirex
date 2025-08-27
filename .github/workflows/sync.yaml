@@ -8,7 +8,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: ${{ env.SYNC_ENABLED == 'true' }}
+    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v5
