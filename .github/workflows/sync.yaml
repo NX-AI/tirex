@@ -17,9 +17,9 @@ jobs:
 
       - name: Configure SSH and Push to Destination
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SYNC_DEPLOY_KEY }}
           DESTINATION_URL: git@github.com:NX-AI/tirex.git
         run: |
+          mkdir -p ~/.ssh
           echo "${{ secrets.SYNC_DEPLOY_KEY }}" | base64 --decode > ~/.ssh/sync_deploy_key
           chmod 600 ~/.ssh/sync_deploy_key
           eval "$(ssh-agent -s)"
