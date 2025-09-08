@@ -1,13 +1,17 @@
-from tirex import ForecastModel, load_model
+import math
+import os
 import time
+
 import datasets
 import fev
 import pytest
-import os
-import math
+
+from tirex import ForecastModel, load_model
+
 
 def geometric_mean(s):
-    return math.prod(s) ** (1/len(s))
+    return math.prod(s) ** (1 / len(s))
+
 
 def eval_task(model, task):
     past_data, _ = task.get_input_data(trust_remote_code=True)
@@ -66,7 +70,7 @@ def test_chronos_all(tirex_model, benchmark):
         )
         tasks_wql.append(evaluation_summary["WQL"])
         tasks_mase.append(evaluation_summary["MASE"])
-    
+
     # Calculated from the geometric mean of the WQL and MASE data of the seasonal_naive model
     # https://github.com/autogluon/fev/blob/main/benchmarks/chronos_zeroshot/results/seasonal_naive.csv
     agg_wql_baseline = 0.1460642781226389

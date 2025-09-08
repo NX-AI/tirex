@@ -8,7 +8,6 @@ import torch
 
 from .standard_adapter import ContextType, get_batches
 
-
 DEF_TARGET_COLUMN = "target"
 DEF_META_COLUMNS = ("start", "item_id")
 

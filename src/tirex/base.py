@@ -3,11 +3,16 @@
 
 import os
 from abc import ABC, abstractmethod
-from typing import TypeVar
+from typing import Literal, TypeVar
 
+import torch
 from huggingface_hub import hf_hub_download
 
 T = TypeVar("T", bound="PretrainedModel")
+
+
+def skip_cuda():
+    return os.getenv("TIREX_NO_CUDA", "False").lower() in ("true", "1", "t")
 
 
 def parse_hf_repo_id(path):
@@ -23,19 +28,30 @@ class PretrainedModel(ABC):
         cls.REGISTRY[cls.register_name()] = cls
 
     @classmethod
-    def from_pretrained(cls: type[T], path, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=None) -> T:
+    def from_pretrained(
+        cls: type[T], path: str, backend: str, device: str | None = None, hf_kwargs=None, ckp_kwargs=None
+    ) -> T:
         if hf_kwargs is None:
             hf_kwargs = {}
         if ckp_kwargs is None:
             ckp_kwargs = {}
+        if device is None:
+            device = "cuda:0" if backend == "cuda" else "cpu"
         if os.path.exists(path):
             print("Loading weights from local directory")
             checkpoint_path = path
         else:
             repo_id = parse_hf_repo_id(path)
             checkpoint_path = hf_hub_download(repo_id=repo_id, filename="model.ckpt", **hf_kwargs)
-        model = cls.load_from_checkpoint(checkpoint_path, map_location=device, **ckp_kwargs)
-        model.after_load_from_checkpoint()
+
+        # load lightning checkpoint
+        checkpoint = torch.load(checkpoint_path, map_location=device, **ckp_kwargs, weights_only=True)
+        model: T = cls(backend=backend, **checkpoint["hyper_parameters"])
+        model.on_load_checkpoint(checkpoint)
+        model.load_state_dict(checkpoint["state_dict"])
+
+        if backend == "cuda":
+            model = model.to(device)
         return model
 
     @classmethod
@@ -43,17 +59,22 @@ class PretrainedModel(ABC):
     def register_name(cls) -> str:
         pass
 
-    def after_load_from_checkpoint(self):
+    def on_load_checkpoint(self):
         pass
 
 
-def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=None) -> PretrainedModel:
+def load_model(
+    path: str,
+    device: str | None = None,
+    backend: Literal["torch", "cuda"] | None = None,
+    hf_kwargs=None,
+    ckp_kwargs=None,
+) -> PretrainedModel:
     """Loads a TiRex model. This function attempts to load the specified model.
 
     Args:
         path (str): Hugging Face path to the model (e.g. NX-AI/TiRex)
         device (str, optional): The device on which to load the model (e.g., "cuda:0", "cpu").
-                                If you want to use "cpu" you need to deactivate the sLSTM CUDA kernels (check repository FAQ!).
         hf_kwargs (dict, optional): Keyword arguments to pass to the Hugging Face Hub download method.
         ckp_kwargs (dict, optional): Keyword arguments to pass when loading the checkpoint.
 
@@ -63,6 +84,11 @@ def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=Non
     Examples:
         model: ForecastModel = load_model("NX-AI/TiRex")
     """
+
+    if backend is None:
+        backend = "torch" if skip_cuda() else "cuda"
+    assert backend in ["torch", "cuda"], f"Backend can either be torch or cuda, not {backend}!"
+
     try:
         _, model_id = parse_hf_repo_id(path).split("/")
     except:
@@ -70,4 +96,5 @@ def load_model(path: str, device: str = "cuda:0", hf_kwargs=None, ckp_kwargs=Non
     model_cls = PretrainedModel.REGISTRY.get(model_id, None)
     if model_cls is None:
         raise ValueError(f"Invalid model id {model_id}")
-    return model_cls.from_pretrained(path, device=device, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+
+    return model_cls.from_pretrained(path, device=device, backend=backend, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)

@@ -16,14 +16,10 @@ keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
 dependencies = [
     "torch",
     "torchvision",
-    "xlstm",
     "einops",
-    "ninja",
     "huggingface-hub",
-    "lightning",
     "numpy",
     "pandas",
-    "dacite",
     "tqdm"
 ]
 
@@ -32,12 +28,19 @@ Repository = "https://github.com/NX-AI/tirex"
 Issues = "https://github.com/NX-AI/tirex/issues"
 
 [project.optional-dependencies]
-notebooks = ["ipykernel"]
+cuda = [
+    "xlstm",
+    "ninja",
+]
+notebooks = ["ipykernel", "matplotlib"]
 gluonts = ["gluonts"]
 hfdataset = ["datasets"]
 test = ["fev"]
 all = [
+    "xlstm",
+    "ninja",
     "ipykernel",
+    "matplotlib",
     "gluonts",
     "datasets",
     "fev",

@@ -2,18 +2,17 @@
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
 import logging
-import warnings
-from contextlib import redirect_stdout
 from dataclasses import dataclass
 
-import lightning as L
 import torch
-from dacite import Config, from_dict
+import torch.nn as nn
+import torch.nn.functional as F
 
+from ..api_adapter.forecast import ForecastModel
 from ..base import PretrainedModel
-from .components import PatchedUniTokenizer, ResidualBlock, StreamToLogger
-from .mixed_stack import skip_cuda, xLSTMMixedLargeBlockStack, xLSTMMixedLargeConfig
-from .predict_utils import TensorQuantileUniPredictMixin
+from ..util import dataclass_from_dict
+from .patcher import PatchedUniTokenizer
+from .slstm.block import RMSNorm, sLSTMBlock, sLSTMBlockConfig
 
 LOGGER = logging.getLogger()
 
@@ -25,113 +24,70 @@ class TiRexZeroConfig:
     quantiles: list[float]
     block_kwargs: dict
     input_ff_dim: int
+    train_ctx_len: int
+    nan_mask_value: int = 0
 
 
-class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixin):
-    def __init__(self, model_config: dict, train_ctx_len=None):
+class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
+    def __init__(self, backend, model_config: TiRexZeroConfig, train_ctx_len=None):
         super().__init__()
-        self.model_config: TiRexZeroConfig = from_dict(TiRexZeroConfig, model_config, config=Config(strict=True))
-        assert self.model_config.input_patch_size == self.model_config.output_patch_size
-        self.train_ctx_len = train_ctx_len
+        self.config = TiRexZeroConfig(**model_config, train_ctx_len=train_ctx_len, nan_mask_value=0)
+        assert self.config.input_patch_size == self.config.output_patch_size
+        self.backend = backend
 
-        # Block Stack
-        self.nan_mask_value = 0
-        self.block_stack, resolved_config = self.init_block(self.model_config.block_kwargs)
-        self.model_config.block_kwargs = resolved_config
+        self.tokenizer = PatchedUniTokenizer(patch_size=self.config.input_patch_size)
 
-        # Input Layer
+        block_config = dataclass_from_dict(sLSTMBlockConfig, self.config.block_kwargs)
         self.input_patch_embedding = ResidualBlock(
-            in_dim=self.model_config.input_patch_size * 2,
-            h_dim=self.model_config.input_ff_dim,
-            out_dim=self.model_config.block_kwargs.embedding_dim,
-        )
-        self.tokenizer = PatchedUniTokenizer(
-            patch_size=self.model_config.input_patch_size,
+            in_dim=self.config.input_patch_size * 2,
+            h_dim=self.config.input_ff_dim,
+            out_dim=block_config.embedding_dim,
         )
 
-        # Output Layer
-        self.num_quantiles = len(self.model_config.quantiles)
-        quantiles = torch.tensor(self.model_config.quantiles)
-        self.register_buffer("quantiles", quantiles, persistent=False)
+        self.blocks = nn.ModuleList(
+            [sLSTMBlock(block_config, backend=self.backend) for i in range(block_config.num_blocks)]
+        )
+
+        self.out_norm = RMSNorm(block_config.embedding_dim)
 
         self.output_patch_embedding = ResidualBlock(
-            in_dim=self.model_config.block_kwargs.embedding_dim,
-            h_dim=self.model_config.input_ff_dim,
-            out_dim=self.num_quantiles * self.model_config.output_patch_size,
+            in_dim=block_config.embedding_dim,
+            h_dim=self.config.input_ff_dim,
+            out_dim=len(self.config.quantiles) * self.config.output_patch_size,
         )
-
-        self.save_hyperparameters()
 
     @classmethod
     def register_name(cls):
         return "TiRex"
 
-    def init_block(self, block_kwargs):
-        config = from_dict(xLSTMMixedLargeConfig, block_kwargs)
-        log_redirect = StreamToLogger(LOGGER, logging.INFO)
-        with redirect_stdout(log_redirect):  # avoid excessive print statements of sLSTM compile
-            model = xLSTMMixedLargeBlockStack(config)
-        return model, config
-
-    @property
-    def quantiles(self):
-        return self.model.quantiles
-
-    def _forward_model_tokenized(
+    def _forecast_quantiles(
         self,
-        input_token,
-        input_mask=None,
-        rollouts=1,
-    ):
-        input_mask = (
-            input_mask.to(input_token.dtype)
-            if input_mask is not None
-            else torch.isnan(input_token).logical_not().to(input_token.dtype)
-        )
-        assert rollouts >= 1
-        bs, numb_ctx_token, token_dim = input_token.shape
-        if rollouts > 1:
-            input_token = torch.cat(
-                (
-                    input_token,
-                    torch.full(
-                        (bs, rollouts - 1, token_dim),
-                        fill_value=torch.nan,
-                        device=input_token.device,
-                        dtype=input_token.dtype,
-                    ),
-                ),
-                dim=1,
-            )
-            input_mask = torch.cat(
-                (
-                    input_mask,
-                    torch.full(
-                        (bs, rollouts - 1, token_dim),
-                        fill_value=False,
-                        device=input_mask.device,
-                        dtype=input_mask.dtype,
-                    ),
-                ),
-                dim=1,
-            )
-        input_token = torch.nan_to_num(input_token, nan=self.nan_mask_value)
-        input_embeds = self.input_patch_embedding(torch.cat((input_token, input_mask), dim=2))
+        context: torch.Tensor,
+        prediction_length: int | None = None,
+        quantile_levels: list[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        output_device: str = "cpu",
+        auto_cast: bool = False,
+        **predict_kwargs,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        device = self.input_patch_embedding.hidden_layer.weight.device
+        context = context.to(device)
 
-        # hidden_states = []
-        # for rollout in range(rollout):
-        x = self.block_stack(input_embeds)
-        if isinstance(x, tuple):
-            hidden_states = x[0]
+        with torch.autocast(device_type=device.type, enabled=auto_cast):
+            predictions = self._forecast_tensor(
+                context=context, prediction_length=prediction_length, **predict_kwargs
+            ).detach()
+        predictions = predictions.to(torch.device(output_device)).swapaxes(1, 2)
+
+        training_quantile_levels = self.config.quantiles
+
+        if set(quantile_levels).issubset(set(training_quantile_levels)):
+            quantiles = predictions[..., [training_quantile_levels.index(q) for q in quantile_levels]]
         else:
-            hidden_states = x
+            quantiles = self._interpolate_quantiles(predictions, quantile_levels)
 
-        quantile_preds = self.output_patch_embedding(hidden_states)
-        quantile_preds = torch.unflatten(quantile_preds, -1, (self.num_quantiles, self.model_config.output_patch_size))
-        quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
-        # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
-
-        return quantile_preds, hidden_states
+        # median as mean
+        mean = predictions[:, :, training_quantile_levels.index(0.5)]
+        return quantiles, mean
 
     @torch.inference_mode()
     def _forecast_tensor(
@@ -146,13 +102,10 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
             prediction_length = self.tokenizer.patch_size
         remaining = -(prediction_length // -self.tokenizer.patch_size)
         if max_context is None:
-            max_context = self.train_ctx_len
-        min_context = max(self.train_ctx_len, max_context)
+            max_context = self.config.train_ctx_len
+        min_context = max(self.config.train_ctx_len, max_context)
 
-        context = context.to(
-            device=self.device,
-            dtype=torch.float32,
-        )
+        context = context.to(dtype=torch.float32)
         while remaining > 0:
             if context.shape[-1] > max_context:
                 context = context[..., -max_context:]
@@ -181,51 +134,92 @@ class TiRexZero(L.LightningModule, PretrainedModel, TensorQuantileUniPredictMixi
 
             context = torch.cat([context, torch.full_like(prediction[:, 0, :], fill_value=torch.nan)], dim=-1)
 
-        return torch.cat(predictions, dim=-1)[..., :prediction_length].to(
-            dtype=torch.float32,
+        return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)
+
+    def _forward_model_tokenized(
+        self,
+        input_token: torch.Tensor,
+        input_mask=None,
+        rollouts=1,
+    ):
+        input_mask = (
+            input_mask.to(input_token.dtype)
+            if input_mask is not None
+            else torch.isnan(input_token).logical_not().to(input_token.dtype)
         )
+        assert rollouts >= 1
+        bs, numb_ctx_token, token_dim = input_token.shape
+        if rollouts > 1:
+            input_token_rollout_pad = torch.full(
+                (bs, rollouts - 1, token_dim),
+                fill_value=torch.nan,
+                device=input_token.device,
+                dtype=input_token.dtype,
+            )
+            input_token = torch.cat((input_token, input_token_rollout_pad), dim=1)
+            input_mask_rollout_pad = torch.full(
+                (bs, rollouts - 1, token_dim),
+                fill_value=False,
+                device=input_mask.device,
+                dtype=input_mask.dtype,
+            )
+            input_mask = torch.cat((input_mask, input_mask_rollout_pad), dim=1)
+
+        input_token = torch.nan_to_num(input_token, nan=self.config.nan_mask_value)
+
+        hidden_states = self.input_patch_embedding(torch.cat((input_token, input_mask), dim=2))
+
+        for block in self.blocks:
+            hidden_states = block(hidden_states)
+
+        hidden_states = self.out_norm(hidden_states)
+
+        quantile_preds = self.output_patch_embedding(hidden_states)
+        quantile_preds = torch.unflatten(
+            quantile_preds, -1, (len(self.config.quantiles), self.config.output_patch_size)
+        )
+        quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
+        # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
+
+        return quantile_preds, hidden_states
+
+    def _interpolate_quantiles(self, predictions: torch.Tensor, quantile_levels: list[float]):
+        training_quantile_levels = self.config.quantiles
+        if min(quantile_levels) < min(training_quantile_levels) or max(quantile_levels) > max(training_quantile_levels):
+            logging.warning(
+                f"Requested quantile levels ({quantile_levels}) fall outside the range of "
+                f"quantiles the model was trained on ({training_quantile_levels}). "
+                "Predictions for out-of-range quantiles will be clamped to the nearest "
+                "boundary of the trained quantiles (i.e., minimum or maximum trained level). "
+                "This can significantly impact prediction accuracy, especially for extreme quantiles. "
+            )
+
+        augmented_predictions = torch.cat(
+            [predictions[..., [0]], predictions, predictions[..., [-1]]],
+            dim=-1,
+        )
+        quantiles = torch.quantile(
+            augmented_predictions,
+            q=torch.tensor(quantile_levels, dtype=augmented_predictions.dtype),
+            dim=-1,
+        ).permute(1, 2, 0)
+        return quantiles
 
     def on_load_checkpoint(self, checkpoint: dict) -> None:
-        state_dict = checkpoint["state_dict"]
-        load_vanilla_kernel = skip_cuda()
-        if load_vanilla_kernel:
-            warnings.warn(
-                "You use TiRex without sLSTM CUDA kernels! This might slow down the model considerably and might degrade forecasting results!"
-                "Set the environment variable TIREX_NO_CUDA to 0 to avoid this!"
-            )
-            block_kwargs = self.model_config.block_kwargs
-            head_dim = block_kwargs.embedding_dim // block_kwargs.num_heads
-            num_gates = 4
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                if "slstm_layer.slstm_cell._recurrent_kernel_" in k:
-                    new_state_dict[k] = (
-                        v.reshape(
-                            block_kwargs.num_heads,
-                            head_dim,
-                            num_gates,
-                            head_dim,
-                        )
-                        .permute(0, 2, 3, 1)
-                        .reshape(
-                            block_kwargs.num_heads,
-                            num_gates * head_dim,
-                            head_dim,
-                        )
-                    )
-                    # new_state_dict[k] = v.permute(0, 2, 1)
-                elif "slstm_layer.slstm_cell._bias_" in k:
-                    new_state_dict[k] = (
-                        v.reshape(block_kwargs.num_heads, num_gates, head_dim).permute(1, 0, 2).reshape(-1)
-                    )
-                else:
-                    new_state_dict[k] = v
-            checkpoint["state_dict"] = new_state_dict
+        # rename keys of state_dict, because the block_stack was moved directly into the tirex model
+        checkpoint["state_dict"] = {k.replace("block_stack.", ""): v for k, v in checkpoint["state_dict"].items()}
 
-    def after_load_from_checkpoint(self):
-        if not skip_cuda() and self.device.type != "cuda":
-            warnings.warn(
-                f"You use TiRex with sLSTM CUDA kernels BUT DO NOT LOAD THE DEVICE ON A CUDA DEVICE (device type is {self.device.type})!"
-                "This is not supported and calls to the model will likely lead to an error if you dont move your model to a CUDA device!"
-                "If you want to run TiRex on CPU you need to disable sLSTM CUDA kernels but be aware of the downsides (see FAQ)"
-            )
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_dim: int, h_dim: int, out_dim: int) -> None:
+        super().__init__()
+        self.hidden_layer = nn.Linear(in_dim, h_dim)
+        self.output_layer = nn.Linear(h_dim, out_dim)
+        self.residual_layer = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x: torch.Tensor):
+        hid = F.relu(self.hidden_layer(x))
+        out = self.output_layer(hid)
+        res = self.residual_layer(x)
+        out = out + res
+        return out

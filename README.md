@@ -40,7 +40,7 @@ conda activate tirex
 ## 2a) Install from source
 git clone github.com/NX-AI/tirex  # if not already cloned before
 cd tirex
-pip install -e .
+pip install -e ".[cuda]"
 
 # 2b) Install from PyPi (will be available soon)
 
@@ -79,8 +79,6 @@ We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifte
 ## FAQ / Troubleshooting:
 
 - **Can I run TiRex on CPU?**:
-  > At the moment CPU support **is experimental**.
-  Running on CPU will slow down the model considerable and might likely forecast results.
   To enable TiRex on CPU you need to disable the CUDA kernels (see section [CUDA Kernels](#cuda-kernels)).
   You can also test Tirex with [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
   If you are interested in running TiRex on more resource constrained or embedded devices get in touch with us.
@@ -128,7 +126,6 @@ These CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 or later.
 We also highly suggest to use the provided [conda environment spec](./requirements_py26.yaml).
 If you don't have such a device, or you have unresolvable problems with the kernels you can use a fallback implementation in pure Pytorch.
-**However, this is at the moment **EXPERIMENTAL**, **slows** down TiRex considerably and likely **degrade forecasting** results!**
 To disable the CUDA kernels set the environment variable
 ```bash
 export TIREX_NO_CUDA=1
@@ -173,7 +170,7 @@ If you use TiRex in your research, please cite our work:
   title = {{{TiRex}}: {{Zero-Shot Forecasting Across Long}} and {{Short Horizons}} with {{Enhanced In-Context Learning}}},
   author = {Auer, Andreas and Podest, Patrick and Klotz, Daniel and B{\"o}ck, Sebastian and Klambauer, G{\"u}nter and Hochreiter, Sepp},
   journal = {ArXiv},
-  volume = {2505.23719},   
+  volume = {2505.23719},
   year = {2025}
 }
 ```
