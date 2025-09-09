@@ -1,0 +1,18 @@
+name: Run tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          # cache: 'pip' # Caching didn't make the CI faster and cache is quite big (4GB)
+
+      - run: pip install -e ".[test,gluonts,hfdataset]"
+      - run: pytest tests -s

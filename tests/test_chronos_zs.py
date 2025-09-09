@@ -57,7 +57,10 @@ def test_chronos_single(tirex_model, benchmark):
     assert evaluation_summary["MASE"] < 0.99, "MASE on the electricity task needs to be less than 0.99"
 
 
-@pytest.mark.skipif(os.getenv("CI"), reason="Skip full chromos benchmarking in the CI")
+@pytest.mark.skipif(
+    os.getenv("CI") is not None and os.getenv("CI_RUN_BENCHMARKS") is None,
+    reason="Skip Chronos benchmarks in CI",
+)
 def test_chronos_all(tirex_model, benchmark):
     tasks_wql = []
     tasks_mase = []

@@ -15,7 +15,6 @@ classifiers = [
 keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
 dependencies = [
     "torch",
-    "torchvision",
     "einops",
     "huggingface-hub",
     "numpy",
@@ -35,7 +34,7 @@ cuda = [
 notebooks = ["ipykernel", "matplotlib"]
 gluonts = ["gluonts"]
 hfdataset = ["datasets"]
-test = ["fev"]
+test = ["fev", "pytest"]
 all = [
     "xlstm",
     "ninja",
@@ -43,6 +42,7 @@ all = [
     "matplotlib",
     "gluonts",
     "datasets",
+    "pytest",
     "fev",
 ]
 

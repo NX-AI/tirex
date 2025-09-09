@@ -15,6 +15,15 @@ def skip_cuda():
     return os.getenv("TIREX_NO_CUDA", "False").lower() in ("true", "1", "t")
 
 
+def xlstm_available():
+    try:
+        from xlstm.blocks.slstm.cell import sLSTMCellConfig, sLSTMCellFuncGenerator
+
+        return True
+    except ModuleNotFoundError:
+        return False
+
+
 def parse_hf_repo_id(path):
     parts = path.split("/")
     return "/".join(parts[0:2])
@@ -86,8 +95,7 @@ def load_model(
     """
 
     if backend is None:
-        backend = "torch" if skip_cuda() else "cuda"
-    assert backend in ["torch", "cuda"], f"Backend can either be torch or cuda, not {backend}!"
+        backend = "torch" if skip_cuda() or not xlstm_available() else "cuda"
 
     try:
         _, model_id = parse_hf_repo_id(path).split("/")

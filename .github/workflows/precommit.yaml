@@ -1,0 +1,16 @@
+name: Check Formatting
+
+on: [push]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install pre-commit
+      - run: pre-commit run --all-files

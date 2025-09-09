@@ -3,6 +3,7 @@
 
 import warnings
 from dataclasses import asdict, dataclass
+from typing import Literal
 
 import torch
 import torch.nn as nn
@@ -15,10 +16,8 @@ from tirex.util import dataclass_from_dict
 class sLSTMBlockConfig:
     embedding_dim: int
     num_heads: int
-    num_blocks: int
     ffn_proj_factor: float = 2.6667
-
-    num_states: int = 4  # this is for the sLSTM, a standard LSTM  has 2
+    num_states: int = 4
     num_gates: int = 4
 
     @property
@@ -27,8 +26,9 @@ class sLSTMBlockConfig:
 
 
 class sLSTMCell(nn.Module):
-    def __init__(self, config: sLSTMBlockConfig, backend: str):
+    def __init__(self, config: sLSTMBlockConfig, backend: Literal["torch", "cuda"]):
         super().__init__()
+        assert backend in ["torch", "cuda"], f"Backend can either be torch or cuda, not {backend}!"
         self.config = config
         self.backend = backend
 

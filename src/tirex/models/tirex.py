@@ -33,10 +33,10 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         super().__init__()
         self.config = TiRexZeroConfig(**model_config, train_ctx_len=train_ctx_len, nan_mask_value=0)
         assert self.config.input_patch_size == self.config.output_patch_size
-        self.backend = backend
 
         self.tokenizer = PatchedUniTokenizer(patch_size=self.config.input_patch_size)
 
+        num_blocks = self.config.block_kwargs["num_blocks"]
         block_config = dataclass_from_dict(sLSTMBlockConfig, self.config.block_kwargs)
         self.input_patch_embedding = ResidualBlock(
             in_dim=self.config.input_patch_size * 2,
@@ -44,9 +44,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
             out_dim=block_config.embedding_dim,
         )
 
-        self.blocks = nn.ModuleList(
-            [sLSTMBlock(block_config, backend=self.backend) for i in range(block_config.num_blocks)]
-        )
+        self.blocks = nn.ModuleList([sLSTMBlock(block_config, backend) for i in range(num_blocks)])
 
         self.out_norm = RMSNorm(block_config.embedding_dim)
 
