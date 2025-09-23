@@ -34,7 +34,7 @@ cuda = [
 notebooks = ["ipykernel", "matplotlib"]
 gluonts = ["gluonts"]
 hfdataset = ["datasets"]
-test = ["fev", "pytest"]
+test = ["fev>=0.6.0", "pytest"]
 all = [
     "xlstm",
     "ninja",
@@ -43,7 +43,7 @@ all = [
     "gluonts",
     "datasets",
     "pytest",
-    "fev",
+    "fev>=0.6.0",
 ]
 
 # build system

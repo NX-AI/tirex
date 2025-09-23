@@ -14,22 +14,30 @@ def geometric_mean(s):
 
 
 def eval_task(model, task):
-    past_data, _ = task.get_input_data(trust_remote_code=True)
-    quantile_levels = task.quantile_levels
-    past_data = past_data.with_format("torch").cast_column(
-        task.target_column, datasets.Sequence(datasets.Value("float32"))
-    )[task.target_column]
-    loaded_data = [t for t in past_data]
+    inference_time = 0.0
+    predictions_per_window = []
+    for window in task.iter_windows(trust_remote_code=True):
+        past_data, _ = fev.convert_input_data(window, adapter="datasets", as_univariate=True)
+        past_data = past_data.with_format("torch").cast_column("target", datasets.Sequence(datasets.Value("float32")))
+        loaded_targets = [t for t in past_data["target"]]
 
-    start_time = time.monotonic()
-    quantiles, means = model.forecast(loaded_data, quantile_levels=quantile_levels, prediction_length=task.horizon)
-    inference_time = time.monotonic() - start_time
-    predictions_dict = {"predictions": means}
-    for idx, level in enumerate(quantile_levels):
-        predictions_dict[str(level)] = quantiles[:, :, idx]  # [num_items, horizon]
+        start_time = time.monotonic()
+        quantiles, means = model.forecast(
+            loaded_targets, quantile_levels=task.quantile_levels, prediction_length=task.horizon
+        )
+        inference_time += time.monotonic() - start_time
 
-    predictions = datasets.Dataset.from_dict(predictions_dict)
-    return predictions, inference_time
+        predictions_dict = {"predictions": means}
+        for idx, level in enumerate(task.quantile_levels):
+            predictions_dict[str(level)] = quantiles[:, :, idx]
+
+        predictions_per_window.append(
+            fev.combine_univariate_predictions_to_multivariate(
+                datasets.Dataset.from_dict(predictions_dict), target_columns=task.target_columns
+            )
+        )
+
+    return predictions_per_window, inference_time
 
 
 @pytest.fixture
