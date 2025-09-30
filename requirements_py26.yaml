@@ -8,6 +8,7 @@ dependencies:
   - cuda=12.6
   - cuda-nvcc=12.6
   - gxx_linux-64=13.2.0
+  - compilers
   - python=3.11
   - pip
   - cmake
