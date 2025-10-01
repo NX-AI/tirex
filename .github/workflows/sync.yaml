@@ -35,3 +35,4 @@ jobs:
 
           git remote add destination ${DESTINATION_URL}
           git push destination main
+          git push destination --tags
