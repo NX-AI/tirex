@@ -84,6 +84,7 @@ def load_model(
     Args:
         path (str): Hugging Face path to the model (e.g. NX-AI/TiRex)
         device (str, optional): The device on which to load the model (e.g., "cuda:0", "cpu").
+        backend (torch | cuda): What backend to use, torch or the custom CUDA kernels. Defaults to cuda when xlstm is installed, else torch.
         hf_kwargs (dict, optional): Keyword arguments to pass to the Hugging Face Hub download method.
         ckp_kwargs (dict, optional): Keyword arguments to pass when loading the checkpoint.
 

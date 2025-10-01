@@ -23,7 +23,7 @@ repos:
   - id: name-tests-test
     args: [ --pytest-test-first ]
     exclude: ^tests/trainer/helpers/
-  - id: no-commit-to-branch
+  # - id: no-commit-to-branch # Removed because the CI fails after a merge into main with this. It is already enforced with branch protection rules.
   - id: trailing-whitespace
 - repo: https://github.com/asottile/pyupgrade
   rev: v3.20.0

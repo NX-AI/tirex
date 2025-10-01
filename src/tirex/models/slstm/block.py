@@ -21,14 +21,8 @@ class sLSTMBlock(nn.Module):
         self.ffn = FeedForward(config.embedding_dim, up_proj_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x_slstm = self.norm_slstm(x)
-
-        x_slstm = self.slstm_layer(x_slstm, slstm_state=None)
-        x = x + x_slstm
-
-        x_ffn = self.norm_ffn(x)
-        x_ffn = self.ffn(x_ffn)
-        x = x + x_ffn
+        x = x + self.slstm_layer(self.norm_slstm(x), slstm_state=None)
+        x = x + self.ffn(self.norm_ffn(x))
         return x
 
 
@@ -41,8 +35,8 @@ class FeedForward(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.silu(self.proj_up_gate(x)) * self.proj_up(x)
-        y = self.proj_down(x)
-        return y
+        x = self.proj_down(x)
+        return x
 
 
 class RMSNorm(nn.Module):

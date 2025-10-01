@@ -168,21 +168,24 @@ def slstm_forward_pointwise(
     states: torch.Tensor,  # dim [4, B, H]
 ) -> tuple[torch.Tensor, torch.Tensor]:
     raw = Wx + Ry + b
-    y, c, n, m = torch.unbind(states.view(4, states.shape[1], -1), dim=0)
 
     iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
+    y, c, n, m = torch.unbind(states.view(4, states.shape[1], -1), dim=0)
+
     # with torch.no_grad():  # THE difference to maxg aka max_gradient (here max / max_static)
-    logfplusm = m + F.logsigmoid(fraw)
+    # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
+    logfplusm = m + F.logsigmoid(fraw)  # eq 15
     if torch.all(n == 0.0):
         mnew = iraw
     else:
-        mnew = torch.max(iraw, logfplusm)
-    ogate = torch.sigmoid(oraw)
-    igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))
-    fgate = torch.minimum(torch.exp(logfplusm - mnew), torch.ones_like(iraw))
-    cnew = fgate * c + igate * torch.tanh(zraw)
-    nnew = fgate * n + igate
-    ynew = ogate * cnew / nnew
+        mnew = torch.max(iraw, logfplusm)  # eq 15
+    ogate = torch.sigmoid(oraw)  # eq 14
+    igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))  # eq 16
+    fgate = torch.minimum(torch.exp(logfplusm - mnew), torch.ones_like(iraw))  # eq 17
+    zgate = torch.tanh(zraw)  # eq 11
+    cnew = fgate * c + igate * zgate  # eq 8
+    nnew = fgate * n + igate  # eq 9
+    hnew = ogate * cnew / nnew  # eq 10
 
-    # shapes ([B,H], [B,H], [B,H]), ([B,H],[B,H],[B,H],[B,H])
-    return torch.stack((ynew, cnew, nnew, mnew), dim=0), torch.stack((igate, fgate, zraw, ogate), dim=0)
+    # y (4, B, H), state (4, B, H)
+    return torch.stack((hnew, cnew, nnew, mnew), dim=0), torch.stack((igate, fgate, zraw, ogate), dim=0)

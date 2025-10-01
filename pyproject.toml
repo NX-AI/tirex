@@ -3,6 +3,7 @@ name = "tirex-ts"
 version = "1.0.0"
 authors = [
   { name="Andreas Auer", email="andreas.auer@nx-ai.com" },
+  { name="Martin Loretz", email="martin.loretz@nx-ai.com" },
 ]
 description = "A pre-trained Time Series Forecasting Model based on xLSTM supporting zero-shot forecasting"
 readme = "README.md"
@@ -18,8 +19,6 @@ dependencies = [
     "einops",
     "huggingface-hub",
     "numpy",
-    "pandas",
-    "tqdm"
 ]
 
 [project.urls]
@@ -31,8 +30,8 @@ cuda = [
     "xlstm",
     "ninja",
 ]
-notebooks = ["ipykernel", "matplotlib"]
-gluonts = ["gluonts"]
+notebooks = ["ipykernel", "matplotlib", "pandas", "python-dotenv"]
+gluonts = ["gluonts", "pandas"]
 hfdataset = ["datasets"]
 test = ["fev>=0.6.0", "pytest"]
 all = [
@@ -40,6 +39,8 @@ all = [
     "ninja",
     "ipykernel",
     "matplotlib",
+    "pandas",
+    "python-dotenv",
     "gluonts",
     "datasets",
     "pytest",
