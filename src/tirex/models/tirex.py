@@ -179,7 +179,24 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
         # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
 
+        quantile_preds = self._forward_model(torch.cat((input_token, input_mask), dim=2))
+
+        quantile_preds = torch.unflatten(
+            quantile_preds, -1, (len(self.config.quantiles), self.config.output_patch_size)
+        )
+        quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
+        # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
         return quantile_preds, hidden_states
+
+    def _forward_model(self, input: torch.Tensor):
+        hidden_states = self.input_patch_embedding(input)
+
+        for block in self.blocks:
+            hidden_states = block(hidden_states)
+
+        hidden_states = self.out_norm(hidden_states)
+
+        return self.output_patch_embedding(hidden_states)
 
     def _interpolate_quantiles(self, predictions: torch.Tensor, quantile_levels: list[float]):
         training_quantile_levels = self.config.quantiles

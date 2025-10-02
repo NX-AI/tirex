@@ -1,12 +1,15 @@
 # Copyright (c) NXAI GmbH.
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Literal, TypeVar
 
 import torch
 from huggingface_hub import hf_hub_download
+
+from tirex.models.slstm.cell import sLSTMCellTorch
 
 T = TypeVar("T", bound="PretrainedModel")
 
@@ -38,7 +41,7 @@ class PretrainedModel(ABC):
 
     @classmethod
     def from_pretrained(
-        cls: type[T], path: str, backend: str, device: str | None = None, hf_kwargs=None, ckp_kwargs=None
+        cls: type[T], path: str, backend: str, device: str | None = None, compile=False, hf_kwargs=None, ckp_kwargs=None
     ) -> T:
         if hf_kwargs is None:
             hf_kwargs = {}
@@ -58,9 +61,10 @@ class PretrainedModel(ABC):
         model: T = cls(backend=backend, **checkpoint["hyper_parameters"])
         model.on_load_checkpoint(checkpoint)
         model.load_state_dict(checkpoint["state_dict"])
+        model = model.to(device)
 
-        if backend == "cuda":
-            model = model.to(device)
+        if compile and backend == "torch":
+            sLSTMCellTorch.slstm_forward = torch.compile(sLSTMCellTorch.slstm_forward, mode="max-autotune")
         return model
 
     @classmethod
@@ -76,6 +80,7 @@ def load_model(
     path: str,
     device: str | None = None,
     backend: Literal["torch", "cuda"] | None = None,
+    compile: bool = False,
     hf_kwargs=None,
     ckp_kwargs=None,
 ) -> PretrainedModel:
@@ -85,6 +90,7 @@ def load_model(
         path (str): Hugging Face path to the model (e.g. NX-AI/TiRex)
         device (str, optional): The device on which to load the model (e.g., "cuda:0", "cpu").
         backend (torch | cuda): What backend to use, torch or the custom CUDA kernels. Defaults to cuda when xlstm is installed, else torch.
+        compile (bool, optional): toch.compile the sLSTM cells, only works with the torch backend
         hf_kwargs (dict, optional): Keyword arguments to pass to the Hugging Face Hub download method.
         ckp_kwargs (dict, optional): Keyword arguments to pass when loading the checkpoint.
 
@@ -106,4 +112,6 @@ def load_model(
     if model_cls is None:
         raise ValueError(f"Invalid model id {model_id}")
 
-    return model_cls.from_pretrained(path, device=device, backend=backend, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs)
+    return model_cls.from_pretrained(
+        path, device=device, backend=backend, compile=compile, hf_kwargs=hf_kwargs, ckp_kwargs=ckp_kwargs
+    )

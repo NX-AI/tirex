@@ -30,3 +30,4 @@ share/python-wheels/
 
 .vscode
 .venv
+torch_compile_debug

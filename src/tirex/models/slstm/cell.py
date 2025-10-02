@@ -43,13 +43,11 @@ class sLSTMCell(nn.Module):
         state = self._get_state(input, state)
 
         if self.backend == "torch":
-            all_states = self._impl_torch(input, state)
+            output, state = self._impl_torch(input, state)
         elif self.backend == "cuda":
-            all_states = self._impl_cuda(input, state)
+            output, state = self._impl_cuda(input, state)
 
-        state = all_states[:, -1]
-        output = self._permute_output(all_states[0][1:])
-        return output.to(input.dtype), state.to(input.dtype)
+        return self._permute_output(output).to(input.dtype), state.to(input.dtype)
 
     def _impl_torch(self, input: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         input = input.to(dtype=torch.bfloat16)
@@ -64,7 +62,7 @@ class sLSTMCell(nn.Module):
             .reshape(-1)
         )
 
-        return slstm_forward(input, state, recurrent_kernel, bias)[0]
+        return sLSTMCellTorch.slstm_forward(input, state, recurrent_kernel, bias)
 
     def _impl_cuda(self, input: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         if input.device.type != "cuda":
@@ -88,13 +86,17 @@ class sLSTMCell(nn.Module):
 
         input = input.permute(0, 1, 3, 2, 4).reshape(input.shape[0], input.shape[1], -1)
 
-        return self.func.apply(
+        all_states = self.func.apply(
             False,
             input.contiguous(),
             state.contiguous(),
             self._recurrent_kernel_.contiguous(),
             self._bias_.contiguous(),
         )
+
+        state = all_states[:, -1]
+        output = all_states[0][1:]
+        return output, state
 
     def _get_input(self, x: torch.Tensor) -> torch.Tensor:
         assert x.shape[-1] == self.config.embedding_dim * self.config.num_gates, (
@@ -119,73 +121,60 @@ class sLSTMCell(nn.Module):
         return output.permute(1, 2, 0, 3)
 
 
-def slstm_forward(
-    x: torch.Tensor,  # [S, B, G*I]
-    states: torch.Tensor,  # [4, B, H] only the first is used for recurrence!
-    R: torch.Tensor,  # [K, R*H, H] - K num_heads
-    b: torch.Tensor,  # [T*H]
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    num_states = states.shape[0]
-    sequence_dim = x.shape[0]
-    # this only works for a fully-connected RNN, for a hin change this
-    num_gates_r = R.shape[2] // R.shape[1]
-    hidden_dim = R.shape[1] * R.shape[0]
-    batch_dim = x.shape[1]
-    num_heads = R.shape[0]
+class sLSTMCellTorch:
+    @staticmethod
+    def slstm_forward(
+        x: torch.Tensor,  # [S, B, G*I]
+        states: torch.Tensor,  # [4, B, H] only the first is used for recurrence!
+        R: torch.Tensor,  # [K, R*H, H] - K num_heads
+        b: torch.Tensor,  # [T*H]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        num_gates = 4
+        num_heads = R.shape[0]
+        S, B, _ = x.shape
+        H = R.shape[1] * num_heads
+        assert states.shape == (num_gates, B, H)
 
-    assert batch_dim == states.shape[1]
-    assert hidden_dim == states.shape[2]
+        states = states.to(R.dtype).unbind(dim=0)
+        output = []
+        for i in range(S):
+            Ry = (
+                states[0]
+                .reshape(B, num_heads, 1, -1)
+                .matmul(R.unsqueeze(0))
+                .reshape(B, num_heads, num_gates, -1)
+                .transpose(1, 2)
+                .reshape(B, -1)
+            )
+            states = sLSTMCellTorch.slstm_forward_pointwise(
+                x[i].float(), Ry.float(), b.float(), [s.float() for s in states]
+            )
+            states = [s.to(dtype=R.dtype) for s in states]
+            output.append(states[0])
 
-    states_all = torch.zeros(
-        [num_states, sequence_dim + 1, batch_dim, hidden_dim],
-        device=x.device,
-        dtype=x.dtype,
-    )
-    states_all[:, 0] = states
-    for i, Wx_t in enumerate(x.unbind(dim=0)):
-        Ry = (
-            states[0]
-            .reshape(batch_dim, num_heads, 1, -1)
-            .matmul(R.unsqueeze(0))
-            .reshape(batch_dim, num_heads, num_gates_r, -1)
-            .transpose(1, 2)
-            .reshape(batch_dim, -1)
-        )
-        sdtype = states.dtype
-        Wx_t, Ry, b, states = Wx_t.float(), Ry.float(), b.float(), states.float()
-        states, gates = slstm_forward_pointwise(Wx_t, Ry, b, states)
-        states = states.to(dtype=sdtype)
-        states_all[:, i + 1] = states
+        return torch.stack(output), torch.stack(states)  # (S, B, H), 4 x (B, H)
 
-    # shapes ([S, B, H], ([B,H], [B,H], [B,H])
-    return states_all, states
+    @staticmethod
+    def slstm_forward_pointwise(
+        Wx: torch.Tensor,  # dim [B, 4*H]
+        Ry: torch.Tensor,  # dim [B, 4*H]
+        b: torch.Tensor,  # dim [1, 4*H]
+        states: torch.Tensor,  # dim 4 x [B, H]
+    ) -> list[torch.Tensor]:
+        y, c, n, m = states
 
+        raw = Wx + Ry + b
+        iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
 
-def slstm_forward_pointwise(
-    Wx: torch.Tensor,  # dim [B, 4*H]
-    Ry: torch.Tensor,  # dim [B, 4*H]
-    b: torch.Tensor,  # dim [1, 4*H]
-    states: torch.Tensor,  # dim [4, B, H]
-) -> tuple[torch.Tensor, torch.Tensor]:
-    raw = Wx + Ry + b
+        # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
+        logfplusm = m + F.logsigmoid(fraw)  # eq 15
+        mnew = torch.where(torch.all(n == 0.0), iraw, torch.max(iraw, logfplusm))  # eq 15
+        ogate = torch.sigmoid(oraw)  # eq 14
+        igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))  # eq 16
+        fgate = torch.minimum(torch.exp(logfplusm - mnew), torch.ones_like(iraw))  # eq 17
+        zgate = torch.tanh(zraw)  # eq 11
+        cnew = fgate * c + igate * zgate  # eq 8
+        nnew = fgate * n + igate  # eq 9
+        hnew = ogate * cnew / nnew  # eq 10
 
-    iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
-    y, c, n, m = torch.unbind(states.view(4, states.shape[1], -1), dim=0)
-
-    # with torch.no_grad():  # THE difference to maxg aka max_gradient (here max / max_static)
-    # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
-    logfplusm = m + F.logsigmoid(fraw)  # eq 15
-    if torch.all(n == 0.0):
-        mnew = iraw
-    else:
-        mnew = torch.max(iraw, logfplusm)  # eq 15
-    ogate = torch.sigmoid(oraw)  # eq 14
-    igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))  # eq 16
-    fgate = torch.minimum(torch.exp(logfplusm - mnew), torch.ones_like(iraw))  # eq 17
-    zgate = torch.tanh(zraw)  # eq 11
-    cnew = fgate * c + igate * zgate  # eq 8
-    nnew = fgate * n + igate  # eq 9
-    hnew = ogate * cnew / nnew  # eq 10
-
-    # y (4, B, H), state (4, B, H)
-    return torch.stack((hnew, cnew, nnew, mnew), dim=0), torch.stack((igate, fgate, zraw, ogate), dim=0)
+        return [hnew, cnew, nnew, mnew]  # 4 x (B, H)
