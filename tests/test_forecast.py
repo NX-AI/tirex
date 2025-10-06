@@ -25,10 +25,11 @@ def tirex_model() -> ForecastModel:
     return load_model("NX-AI/TiRex")
 
 
-def test_forecast_air_traffic(tirex_model):
+@pytest.mark.parametrize("resample_strategy", ([None, "frequency"]))
+def test_forecast_air_traffic(tirex_model, resample_strategy):
     context = load_tensor_from_txt_file("air_passengers.csv")[:-12]
 
-    quantiles, mean = tirex_model.forecast(context, prediction_length=24)
+    quantiles, mean = tirex_model.forecast(context, prediction_length=24, resample_strategy=resample_strategy)
 
     ref_mean = load_tensor_from_txt_file("air_passengers_forecast_ref.csv").unsqueeze(0)
     ref_quantiles = load_tensor_from_pt_file("air_passengers_quantiles_ref.pt")
@@ -38,13 +39,23 @@ def test_forecast_air_traffic(tirex_model):
     torch.testing.assert_close(quantiles, ref_quantiles, rtol=1.6e-2, atol=1e-5)
 
 
-def test_forecast_seattle_5T(tirex_model):
+@pytest.mark.parametrize(
+    "resample_strategy, ref_mean_path, ref_quantiles_path",
+    (
+        [None, "loop_seattle_5T_forecast_ref.csv", "loop_seattle_5T_quantiles_ref.pt"],
+        ["frequency", "loop_seattle_5T_forecast_resampled_ref.csv", "loop_seattle_5T_quantiles_resampled_ref.pt"],
+    ),
+)
+def test_forecast_seattle_5T(tirex_model, resample_strategy, ref_mean_path, ref_quantiles_path):
     context = load_tensor_from_txt_file("loop_seattle_5T.csv")[:-512]
 
-    quantiles, mean = tirex_model.forecast(context, prediction_length=768)
+    quantiles, mean = tirex_model.forecast(context, prediction_length=768, resample_strategy=resample_strategy)
 
-    ref_mean = load_tensor_from_txt_file("loop_seattle_5T_forecast_ref.csv").unsqueeze(0)
-    ref_quantiles = load_tensor_from_pt_file("loop_seattle_5T_quantiles_ref.pt")
+    ref_mean = load_tensor_from_txt_file(ref_mean_path).unsqueeze(0)
+    ref_quantiles = load_tensor_from_pt_file(ref_quantiles_path)
+
+    # write the resampled quantiles to a file
+    torch.save(quantiles, "loop_seattle_5T_quantiles_resampled_ref.pt")
 
     # default rtol & atol for bfloat16
     torch.testing.assert_close(mean, ref_mean, rtol=1.6e-2, atol=1e-5)

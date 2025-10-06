@@ -4,7 +4,7 @@
 import datasets
 import torch
 
-from .standard_adapter import _batch_pad_iterable
+from .standard_adapter import _batch_iterable
 
 DEF_TARGET_COLUMN = "target"
 
@@ -35,4 +35,4 @@ def _get_hf_map(dataset: datasets.Dataset, **hf_kwargs):
 
 def get_hfdata_batches(hf_dataset: datasets.Dataset, batch_size: int, **hf_kwargs):
     dataset, map_func = _get_hf_map(hf_dataset, **hf_kwargs)
-    return _batch_pad_iterable(map(map_func, dataset), batch_size)
+    return _batch_iterable(map(map_func, dataset), batch_size)

@@ -7,7 +7,7 @@ from gluonts.dataset.common import Dataset
 from gluonts.dataset.field_names import FieldName
 from gluonts.model.forecast import QuantileForecast
 
-from .standard_adapter import _batch_pad_iterable
+from .standard_adapter import _batch_iterable
 
 DEF_TARGET_COLUMN = FieldName.TARGET  # target
 DEF_META_COLUMNS = (FieldName.START, FieldName.ITEM_ID)
@@ -27,7 +27,7 @@ def _get_gluon_ts_map(**gluon_kwargs):
 
 
 def get_gluon_batches(gluonDataset: Dataset, batch_size: int, **gluon_kwargs):
-    return _batch_pad_iterable(map(_get_gluon_ts_map(**gluon_kwargs), gluonDataset), batch_size)
+    return _batch_iterable(map(_get_gluon_ts_map(**gluon_kwargs), gluonDataset), batch_size)
 
 
 def format_gluonts_output(quantile_forecasts: torch.Tensor, mean_forecasts, meta: list[dict], quantile_levels):

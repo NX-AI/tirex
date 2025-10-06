@@ -12,6 +12,7 @@ from huggingface_hub import hf_hub_download
 from tirex.models.slstm.cell import sLSTMCellTorch
 
 T = TypeVar("T", bound="PretrainedModel")
+VERSION_DELIMITER = "-"
 
 
 def skip_cuda():
@@ -30,6 +31,17 @@ def xlstm_available():
 def parse_hf_repo_id(path):
     parts = path.split("/")
     return "/".join(parts[0:2])
+
+
+def parse_model_string(model_string):
+    if VERSION_DELIMITER in model_string:
+        parts = model_string.split(VERSION_DELIMITER)
+        model_id, version = parts[0], parts[0]
+    else:
+        model_id = model_string
+        version = None
+
+    return model_id, version
 
 
 class PretrainedModel(ABC):
@@ -105,7 +117,8 @@ def load_model(
         backend = "torch" if skip_cuda() or not xlstm_available() else "cuda"
 
     try:
-        _, model_id = parse_hf_repo_id(path).split("/")
+        _, model_string = parse_hf_repo_id(path).split("/")
+        model_id, version = parse_model_string(model_string)
     except:
         raise ValueError(f"Invalid model path {path}")
     model_cls = PretrainedModel.REGISTRY.get(model_id, None)

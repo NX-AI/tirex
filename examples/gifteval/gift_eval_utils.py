@@ -2,7 +2,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from data_fixed_new_numpy import Dataset
 from gluonts.ev.metrics import (
@@ -83,7 +83,12 @@ def gift_eval_dataset_iter():
                 ds_key = ds_name.lower()
                 ds_key = PRETTY_NAMES.get(ds_key, ds_key)
                 ds_freq = dataset_properties_map[ds_key]["frequency"]
-            yield {"ds_name": ds_name, "ds_key": ds_key, "ds_freq": ds_freq, "term": term}
+            yield {
+                "ds_name": ds_name,
+                "ds_key": ds_key,
+                "ds_freq": ds_freq,
+                "term": term,
+            }
 
 
 # Setup GiftEval evaluation
@@ -111,17 +116,17 @@ def evaluate_dataset(predictor, ds_name, ds_key, ds_freq, term):
     result = {
         "dataset": ds_config,
         "model": predictor.model_id,
-        "eval_metrics/MSE[mean]": res["MSE[mean]"][0],
-        "eval_metrics/MSE[0.5]": res["MSE[0.5]"][0],
-        "eval_metrics/MAE[0.5]": res["MAE[0.5]"][0],
-        "eval_metrics/MASE[0.5]": res["MASE[0.5]"][0],
-        "eval_metrics/MAPE[0.5]": res["MAPE[0.5]"][0],
-        "eval_metrics/sMAPE[0.5]": res["sMAPE[0.5]"][0],
-        "eval_metrics/MSIS": res["MSIS"][0],
-        "eval_metrics/RMSE[mean]": res["RMSE[mean]"][0],
-        "eval_metrics/NRMSE[mean]": res["NRMSE[mean]"][0],
-        "eval_metrics/ND[0.5]": res["ND[0.5]"][0],
-        "eval_metrics/mean_weighted_sum_quantile_loss": res["mean_weighted_sum_quantile_loss"][0],
+        "eval_metrics/MSE[mean]": res["MSE[mean]"].iloc[0],
+        "eval_metrics/MSE[0.5]": res["MSE[0.5]"].iloc[0],
+        "eval_metrics/MAE[0.5]": res["MAE[0.5]"].iloc[0],
+        "eval_metrics/MASE[0.5]": res["MASE[0.5]"].iloc[0],
+        "eval_metrics/MAPE[0.5]": res["MAPE[0.5]"].iloc[0],
+        "eval_metrics/sMAPE[0.5]": res["sMAPE[0.5]"].iloc[0],
+        "eval_metrics/MSIS": res["MSIS"].iloc[0],
+        "eval_metrics/RMSE[mean]": res["RMSE[mean]"].iloc[0],
+        "eval_metrics/NRMSE[mean]": res["NRMSE[mean]"].iloc[0],
+        "eval_metrics/ND[0.5]": res["ND[0.5]"].iloc[0],
+        "eval_metrics/mean_weighted_sum_quantile_loss": res["mean_weighted_sum_quantile_loss"].iloc[0],
         "domain": dataset_properties_map[ds_key]["domain"],
         "num_variates": dataset_properties_map[ds_key]["num_variates"],
     }
@@ -131,8 +136,9 @@ def evaluate_dataset(predictor, ds_name, ds_key, ds_freq, term):
 @dataclass
 class TiRexGiftEvalWrapper:
     model: Any
-    freq: str = None
+    freq: str | None = None
     pred_len: int = 32
+    resample_strategy: str | None = None
 
     def set_ds_freq(self, freq):
         self.freq = freq
@@ -141,7 +147,12 @@ class TiRexGiftEvalWrapper:
         self.pred_len = pred_len
 
     def predict(self, test_data_input):
-        forecasts = self.model.forecast_gluon(test_data_input, prediction_length=self.pred_len, output_type="gluonts")
+        forecasts = self.model.forecast_gluon(
+            test_data_input,
+            prediction_length=self.pred_len,
+            output_type="gluonts",
+            resample_strategy=self.resample_strategy,
+        )
         return forecasts
 
     @property
