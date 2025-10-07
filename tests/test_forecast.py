@@ -54,9 +54,6 @@ def test_forecast_seattle_5T(tirex_model, resample_strategy, ref_mean_path, ref_
     ref_mean = load_tensor_from_txt_file(ref_mean_path).unsqueeze(0)
     ref_quantiles = load_tensor_from_pt_file(ref_quantiles_path)
 
-    # write the resampled quantiles to a file
-    torch.save(quantiles, "loop_seattle_5T_quantiles_resampled_ref.pt")
-
     # default rtol & atol for bfloat16
     torch.testing.assert_close(mean, ref_mean, rtol=1.6e-2, atol=1e-5)
     torch.testing.assert_close(quantiles, ref_quantiles, rtol=1.6e-2, atol=1e-5)

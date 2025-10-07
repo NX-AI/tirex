@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   pull_request:
     branches:
       - main
@@ -24,7 +26,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure SSH and Push to Destination
+      - name: Sync Main
+        if: ${{ github.event_name != 'push' || github.ref == 'refs/heads/main' }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SYNC_DEPLOY_KEY }}" | base64 --decode > ~/.ssh/sync_deploy_key
@@ -35,4 +38,16 @@ jobs:
 
           git remote add destination ${DESTINATION_URL}
           git push destination main
+
+      - name: Sync Tags
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SYNC_DEPLOY_KEY }}" | base64 --decode > ~/.ssh/sync_deploy_key
+          chmod 600 ~/.ssh/sync_deploy_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/sync_deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          git remote add destination ${DESTINATION_URL}
           git push destination --tags
