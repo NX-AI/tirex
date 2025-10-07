@@ -1,0 +1,64 @@
+name: Test Jupyterlab
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # Build the Docker image from your Dockerfile.cpu
+      - name: Build Docker image
+        run: |
+          docker build -t tirex:cpu -f Dockerfile.cpu .
+
+      # Run Jupyter test inside the container
+      - name: Run tests in container
+        run: |
+          docker run --rm -d --name tirex-cpu -p 8889:8888 -v "$(pwd)/tests":/app/tests tirex:cpu bash -lc "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''"
+      
+      # Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests pytest
+
+      # Wait for container to be ready
+      - name: Wait for container to be ready
+        run: |
+          for i in {1..30}; do
+            if docker exec tirex-cpu jupyter server list; then
+              break
+            fi
+            echo "Waiting for container to be ready..."
+            sleep 2
+          done
+
+      # Run the tests/test_jupyterlab.py outside the container
+      - name: Run Jupyter test
+        run: |
+          pytest -s tests/test_jupyterlab.py
+      
+      # RUN THE TESTS INSIDE THE CONTAINER      
+      # forecast_adapter
+      - name: Run forecast_adapter test
+        run: |
+          docker exec tirex-cpu pytest -s /app/tests/test_forecast_adapter.py
+      
+      # forecast
+      - name: Run forecast test
+        run: |
+          docker exec tirex-cpu pytest -s /app/tests/test_forecast.py
