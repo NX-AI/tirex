@@ -5,15 +5,10 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
-    types:
-      - closed
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    # if: ${{ github.repository == 'NX-AI/tirex-internal' }}
     if: False # Running the benchmarks on the github hosted runners takes too long (>1 hour)
     env:
       CI_RUN_BENCHMARKS: True

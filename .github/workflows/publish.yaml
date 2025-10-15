@@ -12,8 +12,6 @@ permissions:
 jobs:
   release-build:
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'NX-AI/tirex' }}
-
     steps:
       - uses: actions/checkout@v5
       - name: Setup Python
