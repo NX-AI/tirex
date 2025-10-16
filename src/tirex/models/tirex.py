@@ -79,12 +79,18 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         training_quantile_levels = self.config.quantiles
 
         if set(quantile_levels).issubset(set(training_quantile_levels)):
-            quantiles = predictions[..., [training_quantile_levels.index(q) for q in quantile_levels]]
+            quantile_indices = torch.tensor(
+                [training_quantile_levels.index(q) for q in quantile_levels],
+                dtype=torch.long,
+                device=predictions.device,
+            )
+            quantiles = torch.index_select(predictions, dim=-1, index=quantile_indices)
         else:
             quantiles = self._interpolate_quantiles(predictions, quantile_levels)
 
         # median as mean
-        mean = predictions[:, :, training_quantile_levels.index(0.5)]
+        median_idx = torch.tensor([training_quantile_levels.index(0.5)], dtype=torch.long, device=predictions.device)
+        mean = torch.index_select(predictions, dim=-1, index=median_idx).squeeze(-1)
         return quantiles, mean
 
     @torch.inference_mode()
@@ -105,24 +111,8 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         context = context.to(dtype=torch.float32)
         while remaining > 0:
-            if context.shape[-1] > max_context:
-                context = context[..., -max_context:]
-            if context.shape[-1] < min_context:
-                pad = torch.full(
-                    (context.shape[0], min_context - context.shape[-1]),
-                    fill_value=torch.nan,
-                    device=context.device,
-                    dtype=context.dtype,
-                )
-                context = torch.concat((pad, context), dim=1)
-            tokenized_tensor, tokenizer_state = self.tokenizer.context_input_transform(context)
             fut_rollouts = min(remaining, max_accelerated_rollout_steps)
-            with torch.no_grad():
-                prediction, _ = self._forward_model_tokenized(input_token=tokenized_tensor, rollouts=fut_rollouts)
-                prediction = prediction[:, :, -fut_rollouts:, :].to(tokenized_tensor)  # predicted token
-                # [bs, num_quantiles, num_predicted_token, output_patch_size]
-            prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
-            prediction = prediction.flatten(start_dim=2)
+            prediction, fut_rollouts = self._forecast_single_step(context, max_context, min_context, fut_rollouts)
 
             predictions.append(prediction)
             remaining -= fut_rollouts
@@ -133,6 +123,33 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
             context = torch.cat([context, torch.full_like(prediction[:, 0, :], fill_value=torch.nan)], dim=-1)
 
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)
+
+    def _forecast_single_step(
+        self,
+        context: torch.Tensor,
+        max_context: int,
+        min_context: int,
+        new_patch_count: int = 1,
+    ) -> tuple[torch.Tensor, int]:
+        if context.shape[-1] > max_context:
+            context = context[..., -max_context:]
+        if context.shape[-1] < min_context:
+            pad = torch.full(
+                (context.shape[0], min_context - context.shape[-1]),
+                fill_value=torch.nan,
+                device=context.device,
+                dtype=context.dtype,
+            )
+            context = torch.concat((pad, context), dim=1)
+
+        tokenized_tensor, tokenizer_state = self.tokenizer.context_input_transform(context)
+        prediction, _ = self._forward_model_tokenized(input_token=tokenized_tensor, rollouts=new_patch_count)
+        prediction = prediction[:, :, -new_patch_count:, :].to(tokenized_tensor)  # predicted token
+        # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
+        prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
+        prediction = prediction.flatten(start_dim=2)
+
+        return prediction, new_patch_count
 
     def _forward_model_tokenized(
         self,
@@ -165,21 +182,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         input_token = torch.nan_to_num(input_token, nan=self.config.nan_mask_value)
 
-        hidden_states = self.input_patch_embedding(torch.cat((input_token, input_mask), dim=2))
-
-        for block in self.blocks:
-            hidden_states = block(hidden_states)
-
-        hidden_states = self.out_norm(hidden_states)
-
-        quantile_preds = self.output_patch_embedding(hidden_states)
-        quantile_preds = torch.unflatten(
-            quantile_preds, -1, (len(self.config.quantiles), self.config.output_patch_size)
-        )
-        quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
-        # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
-
-        quantile_preds = self._forward_model(torch.cat((input_token, input_mask), dim=2))
+        quantile_preds, hidden_states = self._forward_model(torch.cat((input_token, input_mask), dim=2))
 
         quantile_preds = torch.unflatten(
             quantile_preds, -1, (len(self.config.quantiles), self.config.output_patch_size)
@@ -196,7 +199,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         hidden_states = self.out_norm(hidden_states)
 
-        return self.output_patch_embedding(hidden_states)
+        return self.output_patch_embedding(hidden_states), hidden_states
 
     def _interpolate_quantiles(self, predictions: torch.Tensor, quantile_levels: list[float]):
         training_quantile_levels = self.config.quantiles

@@ -100,7 +100,7 @@ class sLSTMCell(nn.Module):
 
     def _get_input(self, x: torch.Tensor) -> torch.Tensor:
         assert x.shape[-1] == self.config.embedding_dim * self.config.num_gates, (
-            f"Input size mismatch: Expected input size {self.config.embedding_dim * self.config.num_gates}, but got {input.size(-1)}."
+            f"Input size mismatch: Expected input size {self.config.embedding_dim * self.config.num_gates}, but got {x.size(-1)}."
         )
         return x.view(x.shape[0], x.shape[1], self.config.num_gates, self.config.num_heads, -1).permute(1, 0, 2, 3, 4)
 
@@ -128,7 +128,7 @@ class sLSTMCellTorch:
         states: torch.Tensor,  # [4, B, H] only the first is used for recurrence!
         R: torch.Tensor,  # [K, R*H, H] - K num_heads
         b: torch.Tensor,  # [T*H]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         num_gates = 4
         num_heads = R.shape[0]
         S, B, _ = x.shape
@@ -167,7 +167,7 @@ class sLSTMCellTorch:
         iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
 
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
-        logfplusm = m + F.logsigmoid(fraw)  # eq 15
+        logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
         mnew = torch.where(torch.all(n == 0.0), iraw, torch.max(iraw, logfplusm))  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
         igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))  # eq 16

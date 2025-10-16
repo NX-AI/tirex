@@ -20,7 +20,7 @@ class sLSTMLayer(nn.Module):
         self.ogate = LinearHeadwiseExpand(in_features, num_heads)
 
         self.slstm_cell = sLSTMCell(self.config, backend)
-        self.group_norm = MultiHeadLayerNorm(ndim=in_features)
+        self.group_norm = MultiHeadLayerNorm(ndim=in_features, num_heads=num_heads)
 
     def forward(self, x: torch.Tensor, slstm_state: torch.Tensor | None = None) -> torch.Tensor:
         x_g = torch.cat((self.fgate(x), self.igate(x), self.zgate(x), self.ogate(x)), dim=-1)
@@ -50,18 +50,20 @@ class LinearHeadwiseExpand(nn.Module):
 
 
 class MultiHeadLayerNorm(nn.Module):
-    def __init__(self, ndim: int):
+    def __init__(self, ndim: int, num_heads: int):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(ndim))
+        self.num_heads = num_heads
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         assert input.dim() == 4, "Input must be 4D tensor (B, NH, S, DH)"
         B, NH, S, DH = input.shape
 
+        assert NH == self.num_heads
         gn_in_1 = input.transpose(1, 2)  # (B, S, NH, DH)
         gn_in_2 = gn_in_1.reshape(B * S, NH * DH)  # (B * S, NH * DH)
         residual_weight = 1.0 + self.weight
-        out = F.group_norm(gn_in_2, num_groups=NH, weight=residual_weight)
+        out = F.group_norm(gn_in_2, num_groups=self.num_heads, weight=residual_weight)
         # (B * S), (NH * DH) -> (B, S, NH, DH) -> (B, NH, S, DH)
         out = out.view(B, S, NH, DH).transpose(1, 2)
         return out
