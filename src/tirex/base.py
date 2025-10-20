@@ -76,7 +76,9 @@ class PretrainedModel(ABC):
         model = model.to(device)
 
         if compile and backend == "torch":
-            sLSTMCellTorch.slstm_forward = torch.compile(sLSTMCellTorch.slstm_forward, mode="max-autotune")
+            compiled_slstm_forward = torch.compile(sLSTMCellTorch.slstm_forward)
+            for block in model.blocks:
+                block.slstm_layer.slstm_cell._impl_forward_torch = compiled_slstm_forward
         return model
 
     @classmethod

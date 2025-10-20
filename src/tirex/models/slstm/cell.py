@@ -38,6 +38,8 @@ class sLSTMCell(nn.Module):
 
         self._bias_ = nn.Parameter(torch.empty((config.num_heads * config.num_gates * config.head_dim), dtype=None))
 
+        self._impl_forward_torch = sLSTMCellTorch.slstm_forward
+
     def forward(self, input: torch.Tensor, state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         input = self._get_input(input)
         state = self._get_state(input, state)
@@ -62,7 +64,7 @@ class sLSTMCell(nn.Module):
             .reshape(-1)
         )
 
-        return sLSTMCellTorch.slstm_forward(input, state, recurrent_kernel, bias)
+        return self._impl_forward_torch(input, state, recurrent_kernel, bias)
 
     def _impl_cuda(self, input: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         if input.device.type != "cuda":
