@@ -1,4 +1,4 @@
-name: Run Core Tests
+name: Run Inference Tests
 
 on:
   push:
@@ -17,8 +17,11 @@ jobs:
           python-version: "3.11"
           # cache: 'pip' # Caching didn't make the CI faster and cache is quite big (4GB)
 
-      - name: Install base dependencies
-        run: pip install -e ".[test,gluonts,hfdataset]"
+      - name: Install inference dependencies
+        working-directory: ./inference
+        run: |
+            pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Run core tests
+      - name: Run inference tests
+        working-directory: ./inference
         run: pytest tests -s

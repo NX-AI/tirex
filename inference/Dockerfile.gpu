@@ -1,0 +1,77 @@
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
+
+# -------------------------
+# Builder (CUDA toolkit for JIT-compatible builds)
+# -------------------------
+FROM nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04 AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-venv python3.12-dev python3-pip \
+    build-essential git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Isolated env
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+RUN python -m pip install --upgrade pip setuptools wheel
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# -------------------------
+# Runtime (keep devel for JIT at runtime)
+# -------------------------
+FROM nvidia/cuda:13.0.1-cudnn-runtime-ubuntu24.04 AS runtime
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CUDA_HOME=/usr/local/cuda \
+    PATH="/opt/venv/bin:/usr/local/cuda/bin:${PATH}" \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-dev build-essential ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bring venv from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# IMPORTANT: create a writable workdir owned by ubuntu (fixes PermissionError)
+RUN install -d -o ubuntu -g ubuntu /home/ubuntu/app
+WORKDIR /home/ubuntu/app
+
+COPY THIRD-PARTY-LICENSES.md .
+
+# Keep your existing project layout (app/main.py, etc.)
+COPY --chown=ubuntu:ubuntu app/ ./app/
+
+# Optional: centralize JIT caches so you can persist them
+RUN mkdir -p /var/cache/triton /var/cache/torchinductor && \
+    chown -R ubuntu:ubuntu /var/cache/triton /var/cache/torchinductor
+ENV TRITON_CACHE_DIR=/var/cache/triton \
+    TORCHINDUCTOR_CACHE_DIR=/var/cache/torchinductor \
+    MODEL_DEVICE=cuda \
+    MODEL_COMPILE=1
+
+USER ubuntu
+EXPOSE 8000
+
+# Simple healthcheck; adjust if you expose a /health endpoint instead
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+        CMD curl -f http://localhost:8000/health || exit 1
+
+# Start exactly like before to preserve imports inside app/
+CMD ["python", "-m", "app.main"]

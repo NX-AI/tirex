@@ -1,0 +1,63 @@
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
+
+# -------------------------
+# Stage 1: Build
+# -------------------------
+FROM python:3.11-slim AS build
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
+
+# -------------------------
+# --- Stage 2: Runtime
+# -------------------------
+FROM python:3.11-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+ g++ \
+ && rm -rf /var/lib/apt/lists/*
+
+# Bring in packages installed in build stage
+COPY --from=build /usr/local /usr/local
+
+# Create non-root user
+RUN useradd --create-home --uid 1000 --shell /bin/bash appuser
+
+# Create a writable workdir owned by appuser
+RUN install -d -o appuser -g appuser /home/appuser/app
+
+# Now set WORKDIR (it already exists and is owned by appuser)
+WORKDIR /home/appuser/app
+
+COPY THIRD-PARTY-LICENSES.md .
+
+# Copy app code; keep a single COPY with chown
+COPY --chown=appuser:appuser app/ ./app/
+
+USER appuser
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["python", "-m", "app.main"]

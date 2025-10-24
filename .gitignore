@@ -30,5 +30,7 @@ share/python-wheels/
 
 .vscode
 .venv
+.pytest_cache
 .ruff_cache
 torch_compile_debug
+*.log

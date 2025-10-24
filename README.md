@@ -53,6 +53,10 @@ You can also run it in [Google Colab](https://colab.research.google.com/github/N
 
 We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifteval.ipynb) and [Chronos-ZS](./examples/chronos_zs/chronos_zs.ipynb).
 
+## TiRex Docker image
+
+For detailed instructions on building and running TiRex in a Docker container, see the [Docker README](./inference/README.md).
+
 ## Finetuning TiRex
 TiRex already provide state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
 
@@ -67,12 +71,6 @@ The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 o
 We also highly suggest to use the provided [conda environment spec](./requirements_py26.yaml).
 The CUDA kernels are automatically used when the xlstm package is installed.
 
-Create a conda environment:
-```sh
-conda create --file requirements_gpu.yaml
-conda activate tirex
-```
-
 To install TiRex with the CUDA kernels run:
 ```sh
 pip install 'tirex-ts[cuda,gluonts,hfdataset]'
@@ -82,32 +80,6 @@ Explicitly set the custom CUDA backend:
 ```python
 model = load_model("NX-AI/TiRex", backend="cuda")
 ```
-
-## Installation (Docker)
-If you prefer running TiRex in containers, we provide ready-to-use Docker services for both GPU and CPU.
-
-Prerequisites:
-- Docker and Docker Compose installed
-- For GPU: NVIDIA driver and NVIDIA Container Toolkit (to enable `runtime: nvidia`)
-
-Volumes and ports:
-- Local `./examples` and `./data` are mounted into the container at `/app/examples` and `/app/data`.
-- GPU service publishes Jupyter on port `8888`; CPU service publishes on `8889`.
-
-Start the CPU container and launch Jupyter Notebook:
-```bash
-docker build -t tirex:cpu -f Dockerfile.cpu . && docker run --rm -d --name tirex-cpu -p 8889:8888 -v "$(pwd)/examples":/app/examples -v "$(pwd)/data":/app/data tirex:cpu bash -lc "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''"
-```
-
-Start the GPU container and launch Jupyter Notebook (check your gpu capability number with this [link](https://developer.nvidia.com/cuda-gpus)):
-```bash
-docker build -t tirex:gpu -f Dockerfile.gpu . && docker run -e TORCH_CUDA_ARCH_LIST="9.0" --gpus all --rm -d --name tirex-gpu -p 8888:8888 -v "$(pwd)/examples":/app/examples -v "$(pwd)/data":/app/data tirex:gpu bash -lc "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''"
-```
-
-Access in your browser:
-- GPU: http://localhost:8888
-- CPU: http://localhost:8889
-
 
 ### Troubleshooting CUDA
 
