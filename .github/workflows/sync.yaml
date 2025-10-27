@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  sync:
+  sync-to-public:
     runs-on: ubuntu-latest
 
     env:

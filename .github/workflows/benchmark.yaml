@@ -1,4 +1,4 @@
-name: Run benchmarks
+name: Run Benchmarks
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  benchmark:
     runs-on: ubuntu-latest
     if: False # Running the benchmarks on the github hosted runners takes too long (>1 hour)
     env:

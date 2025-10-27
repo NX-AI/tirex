@@ -1,4 +1,4 @@
-name: Check Formatting
+name: Check pre-commit hooks
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  pre-commit:
+  pre-commit-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
