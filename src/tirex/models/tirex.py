@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from ..api_adapter.forecast import ForecastModel
 from ..base import PretrainedModel
 from ..util import dataclass_from_dict
-from .patcher import PatchedUniTokenizer
+from .patcher import PatchedTokenizer
 from .slstm.block import RMSNorm, sLSTMBlock, sLSTMBlockConfig
 
 LOGGER = logging.getLogger()
@@ -34,7 +34,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         self.config = TiRexZeroConfig(**model_config, train_ctx_len=train_ctx_len, nan_mask_value=0)
         assert self.config.input_patch_size == self.config.output_patch_size
 
-        self.tokenizer = PatchedUniTokenizer(patch_size=self.config.input_patch_size)
+        self.tokenizer = PatchedTokenizer(patch_size=self.config.input_patch_size)
 
         num_blocks = self.config.block_kwargs["num_blocks"]
         block_config = dataclass_from_dict(sLSTMBlockConfig, self.config.block_kwargs)
@@ -142,12 +142,11 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
             )
             context = torch.concat((pad, context), dim=1)
 
-        tokenized_tensor, tokenizer_state = self.tokenizer.context_input_transform(context)
+        tokenized_tensor, tokenizer_state = self.tokenizer.input_transform(context)
         prediction, _ = self._forward_model_tokenized(input_token=tokenized_tensor, rollouts=new_patch_count)
         prediction = prediction[:, :, -new_patch_count:, :].to(tokenized_tensor)  # predicted token
         # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
         prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
-        prediction = prediction.flatten(start_dim=2)
 
         return prediction, new_patch_count
 
