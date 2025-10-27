@@ -3,7 +3,7 @@ on:
     workflow_run:
         workflows: ['Run Inference Tests']
         types: [completed]
-        branches: [main]
+        branches: [main, docker-build-test]
 
 jobs:
     build-and-push-images:
