@@ -58,64 +58,41 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
     def register_name(cls):
         return "TiRex"
 
+    @torch.inference_mode()
     def _forecast_quantiles(
         self,
         context: torch.Tensor,
         prediction_length: int | None = None,
-        quantile_levels: list[float] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
         output_device: str = "cpu",
-        auto_cast: bool = False,
-        **predict_kwargs,
+        max_accelerated_rollout_steps: int = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         device = self.input_patch_embedding.hidden_layer.weight.device
         context = context.to(device)
 
-        with torch.autocast(device_type=device.type, enabled=auto_cast):
-            predictions = self._forecast_tensor(
-                context=context, prediction_length=prediction_length, **predict_kwargs
-            ).detach()
-        predictions = predictions.to(torch.device(output_device)).swapaxes(1, 2)
+        quantiles = self._forecast_tensor(context, prediction_length, new_patch_count=max_accelerated_rollout_steps)
+        quantiles = quantiles.to(torch.device(output_device)).swapaxes(1, 2)
 
-        training_quantile_levels = self.config.quantiles
-
-        if set(quantile_levels).issubset(set(training_quantile_levels)):
-            quantile_indices = torch.tensor(
-                [training_quantile_levels.index(q) for q in quantile_levels],
-                dtype=torch.long,
-                device=predictions.device,
-            )
-            quantiles = torch.index_select(predictions, dim=-1, index=quantile_indices)
-        else:
-            quantiles = self._interpolate_quantiles(predictions, quantile_levels)
-
-        # median as mean
-        median_idx = torch.tensor([training_quantile_levels.index(0.5)], dtype=torch.long, device=predictions.device)
-        mean = torch.index_select(predictions, dim=-1, index=median_idx).squeeze(-1)
+        mean = quantiles[:, :, self.config.quantiles.index(0.5)].squeeze(-1)  # median as mean
         return quantiles, mean
 
-    @torch.inference_mode()
     def _forecast_tensor(
         self,
         context: torch.Tensor,
         prediction_length: int | None = None,
-        max_context: int | None = None,
-        max_accelerated_rollout_steps: int = 1,
+        new_patch_count: int = 1,
     ) -> torch.Tensor:
         predictions = []
         if prediction_length is None:
             prediction_length = self.tokenizer.patch_size
         remaining = -(prediction_length // -self.tokenizer.patch_size)
-        if max_context is None:
-            max_context = self.config.train_ctx_len
-        min_context = max(self.config.train_ctx_len, max_context)
 
         context = context.to(dtype=torch.float32)
         while remaining > 0:
-            fut_rollouts = min(remaining, max_accelerated_rollout_steps)
-            prediction, fut_rollouts = self._forecast_single_step(context, max_context, min_context, fut_rollouts)
+            new_patch_count = min(remaining, new_patch_count)
+            prediction = self._forecast_single_step(context, new_patch_count)
 
             predictions.append(prediction)
-            remaining -= fut_rollouts
+            remaining -= new_patch_count
 
             if remaining <= 0:
                 break
@@ -124,13 +101,9 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)
 
-    def _forecast_single_step(
-        self,
-        context: torch.Tensor,
-        max_context: int,
-        min_context: int,
-        new_patch_count: int = 1,
-    ) -> tuple[torch.Tensor, int]:
+    def _forecast_single_step(self, context: torch.Tensor, new_patch_count: int = 1) -> torch.Tensor:
+        max_context, min_context = self.config.train_ctx_len, self.config.train_ctx_len
+
         if context.shape[-1] > max_context:
             context = context[..., -max_context:]
         if context.shape[-1] < min_context:
@@ -142,37 +115,32 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
             )
             context = torch.concat((pad, context), dim=1)
 
-        tokenized_tensor, tokenizer_state = self.tokenizer.input_transform(context)
-        prediction, _ = self._forward_model_tokenized(input_token=tokenized_tensor, rollouts=new_patch_count)
-        prediction = prediction[:, :, -new_patch_count:, :].to(tokenized_tensor)  # predicted token
+        input_token, tokenizer_state = self.tokenizer.input_transform(context)
+        prediction = self._forward_model_tokenized(input_token=input_token, new_patch_count=new_patch_count)
+        predicted_token = prediction[:, :, -new_patch_count:, :].to(input_token)  # predicted token
         # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
-        prediction = self.tokenizer.output_transform(prediction, tokenizer_state)
+        predicted_token = self.tokenizer.output_transform(predicted_token, tokenizer_state)
 
-        return prediction, new_patch_count
+        return predicted_token
 
-    def _forward_model_tokenized(
-        self,
-        input_token: torch.Tensor,
-        input_mask=None,
-        rollouts=1,
-    ):
+    def _forward_model_tokenized(self, input_token: torch.Tensor, input_mask=None, new_patch_count=1):
         input_mask = (
             input_mask.to(input_token.dtype)
             if input_mask is not None
             else torch.isnan(input_token).logical_not().to(input_token.dtype)
         )
-        assert rollouts >= 1
+        assert new_patch_count >= 1
         bs, numb_ctx_token, token_dim = input_token.shape
-        if rollouts > 1:
+        if new_patch_count > 1:
             input_token_rollout_pad = torch.full(
-                (bs, rollouts - 1, token_dim),
+                (bs, new_patch_count - 1, token_dim),
                 fill_value=torch.nan,
                 device=input_token.device,
                 dtype=input_token.dtype,
             )
             input_token = torch.cat((input_token, input_token_rollout_pad), dim=1)
             input_mask_rollout_pad = torch.full(
-                (bs, rollouts - 1, token_dim),
+                (bs, new_patch_count - 1, token_dim),
                 fill_value=False,
                 device=input_mask.device,
                 dtype=input_mask.dtype,
@@ -181,16 +149,16 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         input_token = torch.nan_to_num(input_token, nan=self.config.nan_mask_value)
 
-        quantile_preds, hidden_states = self._forward_model(torch.cat((input_token, input_mask), dim=2))
+        quantile_preds = self._forward_model(torch.cat((input_token, input_mask), dim=2))
 
         quantile_preds = torch.unflatten(
             quantile_preds, -1, (len(self.config.quantiles), self.config.output_patch_size)
         )
         quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
         # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
-        return quantile_preds, hidden_states
+        return quantile_preds
 
-    def _forward_model(self, input: torch.Tensor):
+    def _forward_model(self, input: torch.Tensor) -> torch.Tensor:
         hidden_states = self.input_patch_embedding(input)
 
         for block in self.blocks:
@@ -198,29 +166,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         hidden_states = self.out_norm(hidden_states)
 
-        return self.output_patch_embedding(hidden_states), hidden_states
-
-    def _interpolate_quantiles(self, predictions: torch.Tensor, quantile_levels: list[float]):
-        training_quantile_levels = self.config.quantiles
-        if min(quantile_levels) < min(training_quantile_levels) or max(quantile_levels) > max(training_quantile_levels):
-            logging.warning(
-                f"Requested quantile levels ({quantile_levels}) fall outside the range of "
-                f"quantiles the model was trained on ({training_quantile_levels}). "
-                "Predictions for out-of-range quantiles will be clamped to the nearest "
-                "boundary of the trained quantiles (i.e., minimum or maximum trained level). "
-                "This can significantly impact prediction accuracy, especially for extreme quantiles. "
-            )
-
-        augmented_predictions = torch.cat(
-            [predictions[..., [0]], predictions, predictions[..., [-1]]],
-            dim=-1,
-        )
-        quantiles = torch.quantile(
-            augmented_predictions,
-            q=torch.tensor(quantile_levels, dtype=augmented_predictions.dtype),
-            dim=-1,
-        ).permute(1, 2, 0)
-        return quantiles
+        return self.output_patch_embedding(hidden_states)
 
     def on_load_checkpoint(self, checkpoint: dict) -> None:
         # rename keys of state_dict, because the block_stack was moved directly into the tirex model
