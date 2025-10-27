@@ -3,7 +3,7 @@ on:
     workflow_run:
         workflows: ['Run Inference Tests']
         types: [completed]
-        branches: [main]
+        branches: [main, docker-build-test]
     pull_request:
         branches: [docker-build-test]
 
@@ -13,7 +13,7 @@ jobs:
         permissions:
           contents: read
           packages: write
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        if: ${{ github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success' }}
 
         steps:
         - uses: actions/checkout@v5
