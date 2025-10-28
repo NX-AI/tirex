@@ -7,11 +7,24 @@ on:
 
 jobs:
   build-and-push-docker-images:
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'NX-AI/tirex' }}
 
     steps:
     - uses: actions/checkout@v5
+
+    - name: Free up disk space
+      run: |
+        sudo rm -rf /opt/hostedtoolcache
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo apt-get clean
+        docker system prune -af --volumes
 
     - name: Extract version of TiRex from pyproject.toml
       id: get_version
@@ -39,6 +52,11 @@ jobs:
           ghcr.io/nx-ai/tirex-cpu:${{ steps.get_version.outputs.version }}
           ghcr.io/nx-ai/tirex-cpu:latest
         push: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Clean up after CPU build
+      run: docker system prune -af --volumes
 
     - name: Build and push GPU image
       uses: docker/build-push-action@v6
@@ -50,3 +68,5 @@ jobs:
           ghcr.io/nx-ai/tirex-gpu:${{ steps.get_version.outputs.version }}
           ghcr.io/nx-ai/tirex-gpu:latest
         push: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
