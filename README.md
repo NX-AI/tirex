@@ -7,6 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/tirex-ts?color=blue)](https://pypi.org/project/tirex-ts/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/tirex-ts?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/tirex-ts)
 [![License](https://img.shields.io/badge/license-nxai_community-green)](https://github.com/NX-AI/tirex-internal/blob/main/LICENSE)
+[![docs](https://img.shields.io/website-up-down-green-red/http/nx-ai.github.io/tirex//.svg?label=docs)](https://nx-ai.github.io/tirex/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![formatter: docformatter](https://img.shields.io/badge/formatter-docformatter-fedcba.svg)](https://github.com/PyCQA/docformatter)
 
@@ -32,6 +33,9 @@ TiRex is a 35M parameter pre-trained time series forecasting model based on [xLS
 - **State-of-the-art Performance over Long and Short Horizons**:
   TiRex achieves top scores in various time series forecasting benchmarks, see [GiftEval](https://huggingface.co/spaces/Salesforce/GIFT-Eval) and [ChronosZS](https://huggingface.co/spaces/autogluon/fev-leaderboard).
   These benchmark show that TiRex provides great performance for both long and short-term forecasting.
+
+## Documentation
+A detailed documentation of TiRex can be found here: https://nx-ai.github.io/tirex/
 
 ## Installation
 
