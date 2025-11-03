@@ -1,0 +1,54 @@
+name: Build and deploy docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TARGET: public
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: 'docs/package-lock.json'
+
+      - name: Install dependencies
+        run: npm --prefix docs ci
+      - name: Generate sphinx API docs
+        run: npm --prefix docs run generate:api
+      - name: Build website
+        run: npm --prefix docs run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/build
+
+  deploy:
+    name: Deploy docs to GitHub Pages
+    needs: build
+
+    if: ${{ github.repository == 'NX-AI/tirex' }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,73 @@
+---
+title: TiRex
+hide_table_of_contents: true
+hide_title: true
+---
+
+import Link from '@docusaurus/Link';
+
+export const cardStyle = {
+  display:'block',
+  padding:'1.25rem',
+  borderRadius:14,
+  border:'1px solid var(--ifm-color-emphasis-200)',
+  background:'var(--ifm-background-surface-color)',
+  textDecoration:'none'
+};
+
+<div className="hero-surface" style={{textAlign:'center'}}>
+  <h1 style={{fontSize:'3rem', margin:'0 0 .4rem'}}>TiRex</h1>
+  <h2 style={{fontSize:'1.5rem', margin:'0 0 1rem', fontWeight:'400', opacity:'.8'}}>Zero-Shot Forecasting across Long and Short Horizons</h2>
+
+  <div style={{marginTop: '.8rem'}}>
+    [![Paper](https://img.shields.io/static/v1?label=Paper&message=TiRex&color=B31B1B&logo=arXiv)](https://arxiv.org/abs/2505.23719)
+    [![Paper](https://img.shields.io/static/v1?label=Paper&message=xLSTM&color=B31B1B&logo=arXiv)](https://arxiv.org/abs/2405.04517)
+    [![Hugging Face](https://img.shields.io/badge/HuggingFace-TiRex-yellow?logo=huggingface)](https://huggingface.co/NX-AI/TiRex)
+    [![GitHub](https://img.shields.io/badge/GitHub-TiRex-black?logo=github)](https://github.com/NX-AI/TiRex)
+    [![PyPI](https://img.shields.io/pypi/v/tirex-ts?color=blue)](https://pypi.org/project/tirex-ts/)
+    [![PyPI Downloads](https://static.pepy.tech/personalized-badge/tirex-ts?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/tirex-ts)
+  </div>
+
+  <Link className="button button--primary button--lg" to="/getting-started/install">Install</Link>
+  <span style={{display:'inline-block', width:10}} />
+  <Link className="button button--primary button--lg" to="/getting-started/quickstart">Quickstart</Link>
+  <span style={{display:'inline-block', width:10}} />
+  <Link className="button button--primary button--lg" to="/api/generated">API</Link>
+
+</div>
+
+<div style={{
+  margin:'2rem 0 3rem',
+  display:'grid',
+  gap:'1rem',
+  gridTemplateColumns:'repeat(3, minmax(0, 1fr))'
+}}>
+  <Link to="/how-to/forecasting" style={cardStyle}><h3>Time Series Playbook</h3><p>Dive into theory and hands-on guides for forecasting with TiRex.</p><strong style={{color:'var(--ifm-color-primary)'}}>Explore forecasting →</strong></Link>
+  <Link to="/benchmarks" style={cardStyle}><h3>Benchmarks</h3><p>Datasets, metrics (sMAPE/MASE/CRPS), and reproducible evaluation.</p><strong style={{color:'var(--ifm-color-primary)'}}>View results →</strong></Link>
+  <Link to="/deployment" style={cardStyle}><h3>Deploy</h3><p>Packaging tips, ONNX/TensorRT export (coming), and edge deployment.</p><strong style={{color:'var(--ifm-color-primary)'}}>Deployment →</strong></Link>
+</div>
+
+<div style={{marginTop: '2.5rem', textAlign: 'center'}}>
+  <h3 style={{marginBottom: '.5rem'}}>Cite Our Work</h3>
+  <p style={{fontSize: '0.95rem', opacity: 0.8}}>If you use TiRex or xLSTM in your research, please cite our papers:</p>
+  <div style={{textAlign: 'left', margin: '1rem auto 0', fontSize: '0.9rem'}}>
+    ```bibtex
+    @inproceedings{auerTiRexZeroShotForecasting2025,
+      title = {{{TiRex}}: {{Zero-Shot Forecasting Across Long}} and {{Short Horizons}} with {{Enhanced In-Context Learning}}},
+      author = {Andreas Auer and Patrick Podest and Daniel Klotz and Sebastian B{\"o}ck and G{\"u}nter Klambauer and Sepp Hochreiter},
+      booktitle = {The Thirty-Ninth Annual Conference on Neural Information Processing Systems},
+      year = {2025}
+      url = {https://arxiv.org/abs/2505.23719},
+  }
+    ```
+    ```bibtex
+    @inproceedings{beck:24xlstm,
+      title = {xLSTM: Extended Long Short-Term Memory},
+      author = {Maximilian Beck and Korbinian Pöppel and Markus Spanring and Andreas Auer and Oleksandra Prudnikova and Michael Kopp and Günter Klambauer and Johannes Brandstetter and Sepp Hochreiter},
+      booktitle = {Thirty-eighth Conference on Neural Information Processing Systems},
+      year = {2024},
+      url = {https://arxiv.org/abs/2405.04517},
+  }
+    ```
+  </div>
+</div>

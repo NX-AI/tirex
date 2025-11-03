@@ -9,6 +9,8 @@ jobs:
   sync-to-public:
     runs-on: ubuntu-latest
 
+    if: ${{ github.repository == 'NX-AI/tirex-internal' }}
+
     env:
       DESTINATION_URL: git@github.com:NX-AI/tirex.git
 

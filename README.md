@@ -1,6 +1,16 @@
+<div align="center">
+
 # TiRex: Zero-Shot Forecasting across Long and Short Horizons
 
-[Paper](https://arxiv.org/abs/2505.23719) | [TiRex Huggingface Model Card](https://huggingface.co/NX-AI/TiRex)
+[![Paper](https://img.shields.io/static/v1?label=Paper&message=2505.23719&color=B31B1B&logo=arXiv)](https://arxiv.org/abs/2505.23719)
+[![Hugging Face](https://img.shields.io/badge/HuggingFace-TiRex-yellow?logo=huggingface)](https://huggingface.co/NX-AI/TiRex)
+[![PyPI](https://img.shields.io/pypi/v/tirex-ts?color=blue)](https://pypi.org/project/tirex-ts/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/tirex-ts?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/tirex-ts)
+[![License](https://img.shields.io/badge/license-nxai_community-green)](https://github.com/NX-AI/tirex-internal/blob/main/LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![formatter: docformatter](https://img.shields.io/badge/formatter-docformatter-fedcba.svg)](https://github.com/PyCQA/docformatter)
+
+</div>
 
 
 This repository provides the pre-trained forecasting model TiRex introduced in the paper
@@ -110,15 +120,14 @@ os.environ['XLSTM_EXTRA_INCLUDE_PATHS']='/usr/local/include/cuda/:/usr/include/c
 If you use TiRex in your research, please cite our work:
 
 ```bibtex
-@article{auerTiRexZeroShotForecasting2025,
+@inproceedings{auer:25tirex,
   title = {{{TiRex}}: {{Zero-Shot Forecasting Across Long}} and {{Short Horizons}} with {{Enhanced In-Context Learning}}},
-  author = {Auer, Andreas and Podest, Patrick and Klotz, Daniel and B{\"o}ck, Sebastian and Klambauer, G{\"u}nter and Hochreiter, Sepp},
-  journal = {ArXiv},
-  volume = {2505.23719},
+  author = {Andreas Auer and Patrick Podest and Daniel Klotz and Sebastian B{\"o}ck and G{\"u}nter Klambauer and Sepp Hochreiter},
+  booktitle = {The Thirty-Ninth Annual Conference on Neural Information Processing Systems},
   year = {2025}
+  url = {https://arxiv.org/abs/2505.23719},
 }
 ```
-
 
 ## License
 

@@ -1,0 +1,19 @@
+{
+  "name": "tirex-docs",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "generate:api": "bash scripts/generate_api_docs_sphinx.sh",
+    "prebuild": "bash scripts/generate_api_docs_sphinx.sh",
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.9.1",
+    "@docusaurus/preset-classic": "^3.9.1",
+    "clsx": "^2.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

@@ -10,6 +10,7 @@ import fev
 import pytest
 
 from tirex import ForecastModel, load_model
+from tirex.util import select_quantile_subset
 
 
 def geometric_mean(s):
@@ -25,14 +26,13 @@ def eval_task(model, task):
         loaded_targets = [t for t in past_data["target"]]
 
         start_time = time.monotonic()
-        quantiles, means = model.forecast(
-            loaded_targets, quantile_levels=task.quantile_levels, prediction_length=task.horizon
-        )
+        quantiles, means = model.forecast(loaded_targets, prediction_length=task.horizon)
         inference_time += time.monotonic() - start_time
 
         predictions_dict = {"predictions": means}
+        quantiles_subset = select_quantile_subset(quantiles, task.quantile_levels)
         for idx, level in enumerate(task.quantile_levels):
-            predictions_dict[str(level)] = quantiles[:, :, idx]
+            predictions_dict[str(level)] = quantiles_subset[:, :, idx]
 
         predictions_per_window.append(
             fev.combine_univariate_predictions_to_multivariate(

@@ -1,0 +1,359 @@
+.navbar__title { font-weight: 700; }
+
+:root {
+  --ifm-color-primary: rgb(0, 151, 167);
+  --ifm-color-primary-light: rgb(60, 200, 210);
+  --ifm-color-primary-dark: rgb(0, 120, 140);
+  --hero-glow-a: rgba(10,132,255,.10);
+  --hero-glow-b: rgba(0,200,255,.08);
+}
+
+/* === DARK THEME OVERRIDES (NXAI) ===================================== */
+html[data-theme='dark'] {
+  /* Page & surfaces */
+  --ifm-background-color: rgb(23, 23, 23);
+  --ifm-background-surface-color: rgb(30, 30, 30);
+
+  /* Text & links */
+  --ifm-font-color-base: rgb(255, 255, 255);
+  --ifm-link-color: var(--ifm-color-primary);
+  --ifm-link-hover-color: var(--ifm-color-primary-light);
+
+  /* Primary brand in dark mode (keeps your existing brand hue) */
+  --ifm-color-primary: rgb(91, 255, 230);
+  --ifm-color-primary-light: rgb(140, 255, 240);
+  --ifm-color-primary-dark: rgb(60, 220, 200);
+
+  /* Components */
+  --ifm-navbar-background-color: rgb(23, 23, 23);
+  --ifm-footer-background-color: rgb(23, 23, 23);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.08);
+
+  /* Cards & code blocks */
+  --ifm-card-background-color: rgb(32, 32, 32);
+  --ifm-card-border-color: rgba(255, 255, 255, 0.08);
+  --ifm-code-background: rgb(40, 40, 40);
+  --ifm-code-color: rgb(255, 255, 255);
+
+  /* Subtle shadows */
+  --ifm-shadow-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Brighten logo automatically in dark mode if using a single PNG */
+html[data-theme='dark'] .navbar__logo img {
+  filter: brightness(4.0) contrast(120%);
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+
+.hero {
+  background: var(--hero-bg);
+  padding: 5rem 1rem 3rem;
+  text-align: center;
+  border-radius: 18px;
+}
+.hero-surface {
+  background:
+    radial-gradient(900px 560px at 20% 10%, var(--hero-glow-a), transparent),
+    radial-gradient(720px 440px at 80% 20%, var(--hero-glow-b), transparent);
+  border-radius: 16px;
+  padding: 3.5rem 1.25rem 2.25rem;
+}
+
+.hero__logo { width: 88px; height: 88px; margin-bottom: .75rem; }
+.hero__title { font-size: 3rem; margin: .25rem 0; }
+.hero__tagline { font-size: 1.15rem; opacity: .9; margin-bottom: 1.25rem; }
+.hero__cta .button { margin: .25rem .35rem; }
+
+.cards {
+  margin: 2rem 0 3rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (max-width: 960px) {
+  .cards { grid-template-columns: 1fr; }
+}
+.card {
+  display: block;
+  padding: 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 14px;
+  background: var(--ifm-background-surface-color);
+  text-decoration: none;
+}
+.card:hover { border-color: var(--ifm-color-primary); }
+.card h3 { margin: .25rem 0 .35rem; }
+.card__link { color: var(--ifm-color-primary); font-weight: 600; }
+
+.docMainContainer .container { max-width: 1100px; } /* nicer line length */
+
+.button--outline { border-width: 1px; }
+
+/* === Navbar external links (icons, hover, tooltips) ===================== */
+
+/* Right-side items alignment */
+.navbar__items--right > .navbar__item { display: flex; align-items: center; }
+
+/* GITHUB: mask-based monochrome icon that adapts to theme */
+.header-github-link { position: relative; }
+.header-github-link::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  margin-right: 6px;
+  /* Use mask so we can color it via background-color */
+  background-color: var(--ifm-navbar-link-color);
+  -webkit-mask-image: url('https://cdn.jsdelivr.net/npm/simple-icons@9/icons/github.svg');
+  mask-image: url('https://cdn.jsdelivr.net/npm/simple-icons@9/icons/github.svg');
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center;  mask-position: center;
+  -webkit-mask-size: contain;     mask-size: contain;
+  transition: background-color .2s ease, transform .2s ease;
+}
+html[data-theme='dark'] .header-github-link::before { background-color: #fff; }
+.navbar__item:hover .header-github-link::before,
+.navbar__item:focus-within .header-github-link::before { background-color: var(--ifm-color-primary-dark) !important; transform: translateY(-1px); }
+
+/* arxiv: */
+.header-arxiv-link { position: relative; }
+.header-arxiv-link::before {
+  content: '📄'; /* Paper emoji */
+  width: 24px; /* Adjust size as needed for the emoji */
+  height: 24px; /* Adjust size as needed for the emoji */
+  display: inline-block;
+  margin-right: 6px;
+}
+/* Optional: You can still add a hover effect if you want, e.g., scale */
+.navbar__item:hover .header-arxiv-link::before,
+.navbar__item:focus-within .header-arxiv-link::before { filter: brightness(1.05) saturate(1.05); transform: translateY(-1px); }
+
+/* A FACE: keep brand yellow using colored SVG (no mask) */
+.header-hf-link { position: relative; }
+.header-hf-link::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  margin-right: 6px;
+  background-image: url('https://huggingface.co/front/assets/huggingface_logo-noborder.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transition: filter .2s ease, transform .2s ease;
+}
+.navbar__item:hover .header-hf-link::before,
+.navbar__item:focus-within .header-hf-link::before { filter: brightness(1.05) saturate(1.05); transform: translateY(-1px); }
+
+
+/* Tooltips (CSS-only), use aria-label from items */
+.header-github-link, .header-hf-link { position: relative; }
+.header-github-link:hover::after,
+.header-github-link:focus-visible::after,
+.header-hf-link:hover::after,
+.header-hf-link:focus-visible::after,
+.header-arxiv-link:hover::after,
+.header-arxiv-link:focus-visible::after {
+  content: attr(aria-label);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-font-color-base);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  z-index: 20;
+}
+html[data-theme='dark'] .header-github-link:hover::after,
+html[data-theme='dark'] .header-github-link:focus-visible::after,
+html[data-theme='dark'] .header-hf-link:hover::after,
+html[data-theme='dark'] .header-hf-link:focus-visible::after {
+  background: var(--ifm-color-emphasis-300);
+  color: var(--ifm-color-content);
+}
+
+/* === Sidebar headings and collapsible section polish ===================== */
+
+/* Style for static sidebar headings */
+.theme-doc-sidebar-menu .sidebarHeading {
+  display: block;
+  padding: var(--ifm-menu-link-padding-vertical) var(--ifm-menu-link-padding-horizontal);
+  margin-top: .75rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--ifm-color-emphasis-800);
+  background: transparent;
+  border-left: 3px solid transparent;
+}
+
+html[data-theme='dark'] .theme-doc-sidebar-menu .sidebarHeading {
+  color: var(--ifm-color-emphasis-300);
+}
+
+
+/* Improve padding and spacing for collapsible groups */
+.theme-doc-sidebar-menu .menu__list-item--collapsed > .menu__link--sublist,
+.theme-doc-sidebar-menu .menu__list-item--expanded > .menu__link--sublist {
+  font-weight: 600;
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 2px);
+}
+
+/* Hover effect for collapsible categories only (not static headings) */
+.theme-doc-sidebar-menu .menu__list-item--collapsed > .menu__link--sublist:hover,
+.theme-doc-sidebar-menu .menu__list-item--expanded > .menu__link--sublist:hover {
+  background: rgba(0, 151, 167, 0.08);
+}
+
+html[data-theme='dark'] .theme-doc-sidebar-menu .menu__list-item--collapsed > .menu__link--sublist:hover,
+html[data-theme='dark'] .theme-doc-sidebar-menu .menu__list-item--expanded > .menu__link--sublist:hover {
+  background: rgba(91, 255, 230, 0.1);
+}
+
+/* Fine-tune nested doc items under collapsible groups */
+.theme-doc-sidebar-menu .menu__list .menu__list-item > .menu__link {
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 1.5rem);
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.theme-doc-sidebar-menu .menu__list .menu__list-item > .menu__link--active {
+  border-left-color: var(--ifm-color-primary);
+}
+
+
+/* --- Increase indentation for subtopics under collapsible categories --- */
+/* First-level items inside a collapsible category */
+.theme-doc-sidebar-menu .menu__list-item--collapsed > ul .menu__list-item > .menu__link,
+.theme-doc-sidebar-menu .menu__list-item--expanded  > ul .menu__list-item > .menu__link {
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 2.25rem) !important;
+}
+/* Slightly more for second-level (if any) */
+.theme-doc-sidebar-menu .menu__list-item--collapsed > ul .menu__list .menu__list-item > .menu__link,
+.theme-doc-sidebar-menu .menu__list-item--expanded  > ul .menu__list .menu__list-item > .menu__link {
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 3rem) !important;
+}
+/* Hide built-in caret to avoid duplicates */
+.theme-doc-sidebar-menu .menu__caret { display: none !important; }
+
+/* === Visible caret for collapsible categories (right-aligned) ============= */
+.theme-doc-sidebar-menu .menu__link--sublist {
+  position: relative;
+  padding-right: calc(var(--ifm-menu-link-padding-horizontal) + 1.25rem) !important;
+}
+.theme-doc-sidebar-menu .menu__link--sublist::after {
+  content: '▸'; /* triangle */
+  position: absolute;
+  right: var(--ifm-menu-link-padding-horizontal);
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--ifm-color-primary);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.theme-doc-sidebar-menu .menu__list-item--expanded > .menu__link--sublist::after {
+  transform: translateY(-50%) rotate(90deg);
+  color: var(--ifm-color-primary-dark);
+}
+
+/* Neutralize any built-in left caret that may occupy ::before */
+.theme-doc-sidebar-menu .menu__link--sublist::before { content: none; }
+
+/* === Icons for docs navigation (leaf + category) ======================== */
+.theme-doc-sidebar-menu .menu__link:not(.menu__link--sublist) {
+  position: relative;
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 1.75rem) !important;
+}
+.theme-doc-sidebar-menu .menu__link:not(.menu__link--sublist)::before {
+  content: '•';
+  position: absolute;
+  left: var(--ifm-menu-link-padding-horizontal);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-block;
+  width: 1.2rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+html[data-theme='dark'] .theme-doc-sidebar-menu .menu__link:not(.menu__link--sublist)::before {
+  opacity: 0.85;
+}
+.theme-doc-sidebar-menu .menu__link:not(.menu__link--sublist):hover::before {
+  transform: translateY(-50%) scale(1.08);
+}
+
+/* Emoji mapping */
+.theme-doc-sidebar-menu .menu__list-item.icon-docs > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-docs .menu__link--sublist::before { content: '📘' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-research > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-research .menu__link--sublist::before { content: '🧪' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-model > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-model .menu__link--sublist::before { content: '🧠' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-install > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-install .menu__link--sublist::before { content: '⬇️' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-quickstart > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-quickstart .menu__link--sublist::before { content: '🚀' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-eval > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-eval .menu__link--sublist::before { content: '📊' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-dataset > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-dataset .menu__link--sublist::before { content: '🗄️' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-notebook > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-notebook .menu__link--sublist::before { content: '📓' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-examples > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-examples .menu__link--sublist::before { content: '🧩' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-api > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-api .menu__link--sublist::before { content: '🔌' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-deploy > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-deploy .menu__link--sublist::before { content: '⚙️' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-metrics > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-metrics .menu__link--sublist::before { content: '🧮' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-benchmark > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-benchmark .menu__link--sublist::before { content: '🏆' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-contrib > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-contrib .menu__link--sublist::before { content: '👥' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-theory > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-theory .menu__link--sublist::before { content: '📚' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-practice > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-practice .menu__link--sublist::before { content: '🛠️' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-about > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-about .menu__link--sublist::before { content: 'ℹ️' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-forecasting > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist::before { content: '📈' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-python > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist::before { content: '🐍' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-api-overview > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-api-overview .menu__link--sublist::before { content: '📖' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-home > .menu__link::before { content: '🦖' !important; }
+
+/* Python module leaf pages */
+.theme-doc-sidebar-menu .menu__link[href^="/api/generated/"]::before {
+  content: '📄' !important;
+}
+
+/* Category spacing for emoji icons */
+.theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist,
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist {
+  position: relative;
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 2rem) !important;
+}
+.theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist::before {
+  position: absolute;
+  left: var(--ifm-menu-link-padding-horizontal);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.05rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist:hover::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist:hover::before {
+  transform: translateY(-50%) scale(1.05);
+}

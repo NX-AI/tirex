@@ -1,7 +1,7 @@
 name: Build and Push Docker Images
 on:
   workflow_run:
-    workflows: ['Run Inference Tests']
+    workflows: ['Publish Python Package']
     types: [completed]
     branches: [main]
 

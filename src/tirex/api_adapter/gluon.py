@@ -30,7 +30,8 @@ def get_gluon_batches(gluonDataset: Dataset, batch_size: int, **gluon_kwargs):
     return _batch_iterable(map(_get_gluon_ts_map(**gluon_kwargs), gluonDataset), batch_size)
 
 
-def format_gluonts_output(quantile_forecasts: torch.Tensor, mean_forecasts, meta: list[dict], quantile_levels):
+def format_gluonts_output(quantile_forecasts: torch.Tensor, mean_forecasts, meta: list[dict]):
+    quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
     forecasts = []
     for i in range(quantile_forecasts.shape[0]):
         start_date = meta[i].get(FieldName.START, pd.Period("01-01-2000", freq=meta[i].get("freq", "h")))

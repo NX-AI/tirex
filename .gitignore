@@ -28,9 +28,18 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
+# Docs
+node_modules
+docs/content/api/generated/
+.docusaurus
+.doctrees
+
+
 .vscode
 .venv
+.DS_Store
 .pytest_cache
 .ruff_cache
 torch_compile_debug
 *.log
+*.nsys-rep

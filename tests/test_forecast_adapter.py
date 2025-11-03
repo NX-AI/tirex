@@ -25,18 +25,15 @@ class DummyForecaster(ForecastModel):
         return fc_random_from_tensor(batch, **kwargs)
 
 
-quantile_levels = list(np.linspace(0.1, 0.9, 9))
-
-
 # ----- Tests: Output formatting -----
 def test_format_output_shapes(dummy_fc_func):
     B, L = 2, 5
     PL = 10
     q, m = dummy_fc_func(torch.rand(B, L), prediction_length=PL)
-    out_q, out_m = _format_output(q, m, [{}] * B, quantile_levels, "torch")
+    out_q, out_m = _format_output(q, m, [{}] * B, "torch")
     assert isinstance(out_q, torch.Tensor)
     assert isinstance(out_m, torch.Tensor)
-    assert out_q.shape == (B, PL, len(quantile_levels))
+    assert out_q.shape == (B, PL, 9)
     assert out_m.shape == (B, PL)
 
 
@@ -44,10 +41,10 @@ def test_format_output_shapes(dummy_fc_func):
     B, L = 2, 5
     PL = 10
     q, m = dummy_fc_func(torch.rand(B, L), prediction_length=PL)
-    out_q, out_m = _format_output(q, m, [{}] * B, quantile_levels, "numpy")
+    out_q, out_m = _format_output(q, m, [{}] * B, "numpy")
     assert isinstance(out_q, np.ndarray)
     assert isinstance(out_m, np.ndarray)
-    assert out_q.shape == (B, PL, len(quantile_levels))
+    assert out_q.shape == (B, PL, 9)
     assert out_m.shape == (B, PL)
 
 
@@ -55,7 +52,7 @@ def test_format_output_shapes(dummy_fc_func):
 def test_gen_forecast_single_batch(dummy_fc_func):
     context = torch.rand((5, 20))
     batches = get_batches(context, batch_size=2)
-    q, m = _gen_forecast(dummy_fc_func, batches, "torch", quantile_levels, prediction_length=10, yield_per_batch=False)
+    q, m = _gen_forecast(dummy_fc_func, batches, "torch", prediction_length=10, yield_per_batch=False)
     assert q.shape == (5, 10, 9)
     assert m.shape == (5, 10)
 
@@ -63,9 +60,7 @@ def test_gen_forecast_single_batch(dummy_fc_func):
 def test_gen_forecast_iterator(dummy_fc_func):
     context = torch.rand((5, 20))
     batches = get_batches(context, batch_size=2)
-    iterator = _gen_forecast(
-        dummy_fc_func, batches, "torch", quantile_levels, prediction_length=10, yield_per_batch=True
-    )
+    iterator = _gen_forecast(dummy_fc_func, batches, "torch", prediction_length=10, yield_per_batch=True)
     outputs = list(iterator)
     assert len(outputs) == 3
     for i, (q, m) in enumerate(outputs):

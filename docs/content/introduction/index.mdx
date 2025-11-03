@@ -1,0 +1,33 @@
+import Badges from '@site/src/components/Badges';
+
+# xLSTM and TiRex for Time Series Forecasting
+
+<Badges />
+
+---
+
+TiRex is a 35M parameter pre-trained time series forecasting model based on [xLSTM](https://github.com/NX-AI/xlstm).
+
+## Key Facts:
+- **Zero-Shot Forecasting:** TiRex is a pre-trained model that performs time series forecasting without requiring any training on your data. Simply download and use it.
+
+- **Quantile Predictions:** TiRex provides both point estimates and quantile estimates.
+
+- **State-of-the-art Performance over Long and Short Horizons:** TiRex achieves top scores in various time series forecasting benchmarks, see [GiftEval](https://huggingface.co/spaces/Salesforce/GIFT-Eval) and [ChronosZS](https://huggingface.co/spaces/autogluon/fev-leaderboard). These benchmark show that TiRex provides great performance for both long and short-term forecasting.
+
+---
+## Brief Background
+**xLSTM (Extended Long Short-Term Memory)** is a powerful new architecture for sequence modeling, building upon the success of traditional LSTMs. It introduces key innovations that enhance its ability to capture long-range dependencies and complex patterns in data, making it particularly well-suited for tasks like time series forecasting.
+
+**TiRex** leverages the power of xLSTM to provide a state-of-the-art framework for time series forecasting. By utilizing the advanced sequence modeling capabilities of xLSTM, TiRex can generate accurate forecasts across various time horizons and data characteristics — without being trained on task-specific data. This capability is referred to *zero-shot* forecasting.
+
+---
+
+## Potential Applications
+
+TiRex can be applied to a wide range of real-world time series forecasting problems, including (but not limited to):
+
+- **Demand Forecasting:** Estimating future product demand for inventory management and supply chain optimization.
+- **Energy Forecasting:** Predicting electricity consumption or renewable energy generation.
+- **Traffic Forecasting:** Anticipating traffic flow for urban planning and navigation systems.
+- **Environmental Forecasting:** Modeling climate patterns or predicting pollution levels.

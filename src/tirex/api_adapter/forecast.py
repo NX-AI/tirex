@@ -23,7 +23,6 @@ def _format_output(
     quantiles: torch.Tensor,
     means: torch.Tensor,
     sample_meta: list[dict],
-    quantile_levels: list[float],
     output_type: Literal["torch", "numpy", "gluonts"],
 ):
     if output_type == "torch":
@@ -35,7 +34,7 @@ def _format_output(
             from .gluon import format_gluonts_output
         except ImportError:
             raise ValueError("output_type glutonts needs GluonTs but GluonTS is not available (not installed)!")
-        return format_gluonts_output(quantiles, means, sample_meta, quantile_levels)
+        return format_gluonts_output(quantiles, means, sample_meta)
     else:
         raise ValueError(f"Invalid output type: {output_type}")
 
@@ -61,14 +60,13 @@ def _pad_time_series_batch(
     return padded
 
 
-def _as_generator(batches, fc_func, quantile_levels, output_type, **predict_kwargs):
+def _as_generator(batches, fc_func, output_type, **predict_kwargs):
     for batch_ctx, batch_meta in batches:
         quantiles, mean = fc_func(batch_ctx, **predict_kwargs)
         yield _format_output(
             quantiles=quantiles,
             means=mean,
             sample_meta=batch_meta,
-            quantile_levels=quantile_levels,
             output_type=output_type,
         )
 
@@ -152,7 +150,6 @@ def _gen_forecast(
     fc_func,
     batches,
     output_type,
-    quantile_levels,
     yield_per_batch,
     resample_strategy: str | None = None,
     max_context: int = 2016,
@@ -173,7 +170,7 @@ def _gen_forecast(
         fc_func = partial(_call_fc_with_padding, base_fc_func)
 
     if yield_per_batch:
-        return _as_generator(batches, fc_func, quantile_levels, output_type, **predict_kwargs)
+        return _as_generator(batches, fc_func, output_type, **predict_kwargs)
 
     prediction_q = []
     prediction_m = []
@@ -191,50 +188,8 @@ def _gen_forecast(
         quantiles=prediction_q,
         means=prediction_m,
         sample_meta=sample_meta,
-        quantile_levels=quantile_levels,
         output_type=output_type,
     )
-
-
-def _common_forecast_doc():
-    common_doc = f"""
-        This method takes historical context data as input and outputs probabilistic forecasts.
-
-        Args:
-            output_type (Literal["torch", "numpy", "gluonts"], optional):
-                Specifies the desired format of the returned forecasts:
-                - "torch": Returns forecasts as `torch.Tensor` objects [batch_dim, forecast_len, |quantile_levels|]
-                - "numpy": Returns forecasts as `numpy.ndarray` objects [batch_dim, forecast_len, |quantile_levels|]
-                - "gluonts": Returns forecasts as a list of GluonTS `Forecast` objects.
-                Defaults to "torch".
-
-            batch_size (int, optional): The number of time series instances to process concurrently by the model.
-                                        Defaults to 512. Must be $>= 1$.
-
-            quantile_levels (List[float], optional): Quantile levels for which predictions should be generated.
-                                                     Defaults to (0.1, 0.2, ..., 0.9).
-
-            yield_per_batch (bool, optional): If `True`, the method will act as a generator, yielding
-                                              forecasts batch by batch as they are computed.
-                                              Defaults to `False`.
-
-            resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: {RESAMPLE_STRATEGIES}.
-                                                If `None`, no resampling is applied. Currently only "frequency" is supported.
-
-            **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
-                              prediction mechanism of the pre-trained model. Refer to the model's
-                              internal prediction method documentation for available options.
-
-        Returns:
-            The return type depends on `output_type` and `yield_per_batch`:
-                - If `yield_per_batch` is `True`: An iterator that yields forecasts. Each yielded item
-                  will correspond to a batch of forecasts in the format specified by `output_type`.
-                - If `yield_per_batch` is `False`: A single object containing all forecasts.
-                  - If `output_type="torch"`: `Tuple[torch.Tensor, torch.Tensor]` (quantiles, mean).
-                  - If `output_type="numpy"`: `Tuple[numpy.ndarray, numpy.ndarray]` (quantiles, mean).
-                  - If `output_type="gluonts"`: A `List[gluonts.model.forecast.Forecast]` of all forecasts.
-        """
-    return common_doc
 
 
 class ForecastModel(ABC):
@@ -252,13 +207,44 @@ class ForecastModel(ABC):
         context: ContextType,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
         **predict_kwargs,
     ):
-        f"""
-        {_common_forecast_doc}
+        """
+        This method takes historical context data as input and outputs probabilistic forecasts.
+
+        Args:
+            output_type (Literal["torch", "numpy", "gluonts"], optional):
+                Specifies the desired format of the returned forecasts:
+                - "torch": Returns forecasts as `torch.Tensor` objects [batch_dim, forecast_len, quantile_count]
+                - "numpy": Returns forecasts as `numpy.ndarray` objects [batch_dim, forecast_len, quantile_count]
+                - "gluonts": Returns forecasts as a list of GluonTS `Forecast` objects.
+                Defaults to "torch".
+
+            batch_size (int, optional): The number of time series instances to process concurrently by the model.
+                                        Defaults to 512. Must be $>= 1$.
+
+            yield_per_batch (bool, optional): If `True`, the method will act as a generator, yielding
+                                              forecasts batch by batch as they are computed.
+                                              Defaults to `False`.
+
+            resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
+                                                If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
+                              prediction mechanism of the pre-trained model. Refer to the model's
+                              internal prediction method documentation for available options.
+
+        Returns:
+            The return type depends on `output_type` and `yield_per_batch`:
+                - If `yield_per_batch` is `True`: An iterator that yields forecasts. Each yielded item
+                  will correspond to a batch of forecasts in the format specified by `output_type`.
+                - If `yield_per_batch` is `False`: A single object containing all forecasts.
+                  - If `output_type="torch"`: `Tuple[torch.Tensor, torch.Tensor]` (quantiles, mean).
+                  - If `output_type="numpy"`: `Tuple[numpy.ndarray, numpy.ndarray]` (quantiles, mean).
+                  - If `output_type="gluonts"`: A `List[gluonts.model.forecast.Forecast]` of all forecasts.
+
         Args:
             context (ContextType): The historical "context" data of the time series:
                 - `torch.Tensor`: 1D `[context_length]` or 2D `[batch_dim, context_length]` tensor
@@ -272,7 +258,6 @@ class ForecastModel(ABC):
             self._forecast_quantiles,
             batches,
             output_type,
-            quantile_levels,
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,
@@ -284,14 +269,44 @@ class ForecastModel(ABC):
         gluonDataset,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
         data_kwargs: dict = {},
         **predict_kwargs,
     ):
-        f"""
-        {_common_forecast_doc()}
+        """
+        This method takes historical context data as input and outputs probabilistic forecasts.
+
+        Args:
+            output_type (Literal["torch", "numpy", "gluonts"], optional):
+                Specifies the desired format of the returned forecasts:
+                - "torch": Returns forecasts as `torch.Tensor` objects [batch_dim, forecast_len, quantile_count]
+                - "numpy": Returns forecasts as `numpy.ndarray` objects [batch_dim, forecast_len, quantile_count]
+                - "gluonts": Returns forecasts as a list of GluonTS `Forecast` objects.
+                Defaults to "torch".
+
+            batch_size (int, optional): The number of time series instances to process concurrently by the model.
+                                        Defaults to 512. Must be $>= 1$.
+
+            yield_per_batch (bool, optional): If `True`, the method will act as a generator, yielding
+                                              forecasts batch by batch as they are computed.
+                                              Defaults to `False`.
+
+            resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
+                                                If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
+                              prediction mechanism of the pre-trained model. Refer to the model's
+                              internal prediction method documentation for available options.
+
+        Returns:
+            The return type depends on `output_type` and `yield_per_batch`:
+                - If `yield_per_batch` is `True`: An iterator that yields forecasts. Each yielded item
+                  will correspond to a batch of forecasts in the format specified by `output_type`.
+                - If `yield_per_batch` is `False`: A single object containing all forecasts.
+                  - If `output_type="torch"`: `Tuple[torch.Tensor, torch.Tensor]` (quantiles, mean).
+                  - If `output_type="numpy"`: `Tuple[numpy.ndarray, numpy.ndarray]` (quantiles, mean).
+                  - If `output_type="gluonts"`: A `List[gluonts.model.forecast.Forecast]` of all forecasts.
 
         Args:
             gluonDataset (gluon_ts.dataset.common.Dataset): A GluonTS dataset object containing the
@@ -311,7 +326,6 @@ class ForecastModel(ABC):
             self._forecast_quantiles,
             batches,
             output_type,
-            quantile_levels,
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,
@@ -323,14 +337,44 @@ class ForecastModel(ABC):
         hf_dataset,
         output_type: Literal["torch", "numpy", "gluonts"] = "torch",
         batch_size: int = 512,
-        quantile_levels: list[float] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
         data_kwargs: dict = {},
         **predict_kwargs,
     ):
-        f"""
-        {_common_forecast_doc()}
+        """
+        This method takes historical context data as input and outputs probabilistic forecasts.
+
+        Args:
+            output_type (Literal["torch", "numpy", "gluonts"], optional):
+                Specifies the desired format of the returned forecasts:
+                - "torch": Returns forecasts as `torch.Tensor` objects [batch_dim, forecast_len, quantile_count]
+                - "numpy": Returns forecasts as `numpy.ndarray` objects [batch_dim, forecast_len, quantile_count]
+                - "gluonts": Returns forecasts as a list of GluonTS `Forecast` objects.
+                Defaults to "torch".
+
+            batch_size (int, optional): The number of time series instances to process concurrently by the model.
+                                        Defaults to 512. Must be $>= 1$.
+
+            yield_per_batch (bool, optional): If `True`, the method will act as a generator, yielding
+                                              forecasts batch by batch as they are computed.
+                                              Defaults to `False`.
+
+            resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
+                                                If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
+                              prediction mechanism of the pre-trained model. Refer to the model's
+                              internal prediction method documentation for available options.
+
+        Returns:
+            The return type depends on `output_type` and `yield_per_batch`:
+                - If `yield_per_batch` is `True`: An iterator that yields forecasts. Each yielded item
+                  will correspond to a batch of forecasts in the format specified by `output_type`.
+                - If `yield_per_batch` is `False`: A single object containing all forecasts.
+                  - If `output_type="torch"`: `Tuple[torch.Tensor, torch.Tensor]` (quantiles, mean).
+                  - If `output_type="numpy"`: `Tuple[numpy.ndarray, numpy.ndarray]` (quantiles, mean).
+                  - If `output_type="gluonts"`: A `List[gluonts.model.forecast.Forecast]` of all forecasts.
 
         Args:
             hf_dataset (datasets.Dataset): A Hugging Face `Dataset` object containing the
@@ -352,7 +396,6 @@ class ForecastModel(ABC):
             self._forecast_quantiles,
             batches,
             output_type,
-            quantile_levels,
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,

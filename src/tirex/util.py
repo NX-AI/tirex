@@ -419,7 +419,7 @@ def run_fft_analysis(
     scaling : {'amplitude', 'power', 'raw'}
         - 'amplitude': one-sided amplitude spectrum with window-power compensation.
         - 'power'    : one-sided power (not density) with window-power compensation.
-        - 'raw'      : |rfft(yw)| (no normalization, mostly for debugging).
+        - 'raw'      : rfft(yw) (no normalization, mostly for debugging).
     peak_prominence : float
         Absolute threshold on the normalized spectrum for peak detection.
 
@@ -527,7 +527,6 @@ def resampling_factor(inverted_freq, path_size):
 def custom_find_peaks(
     f,
     spec,
-    *,
     max_peaks=5,
     prominence_threshold=0.1,
     min_period=64,
@@ -615,3 +614,16 @@ def round_up_to_next_multiple_of(x: int, multiple_of: int) -> int:
 def dataclass_from_dict(cls, dict: dict):
     class_fields = {f.name for f in fields(cls)}
     return cls(**{k: v for k, v in dict.items() if k in class_fields})
+
+
+def select_quantile_subset(quantiles: torch.Tensor, quantile_levels: list[float]):
+    """
+    Select specified quantile levels from the quantiles.
+    """
+    trained_quantiles = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    assert set(quantile_levels).issubset(trained_quantiles), (
+        f"Only the following quantile_levels are supported: {quantile_levels}"
+    )
+    quantile_levels_idx = [trained_quantiles.index(q) for q in quantile_levels]
+    quantiles_idx = torch.tensor(quantile_levels_idx, dtype=torch.long, device=quantiles.device)
+    return torch.index_select(quantiles, dim=-1, index=quantiles_idx).squeeze(-1)
