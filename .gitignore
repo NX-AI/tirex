@@ -42,4 +42,6 @@ docs/content/api/generated/
 .ruff_cache
 torch_compile_debug
 *.log
+
+.DS_Store
 *.nsys-rep

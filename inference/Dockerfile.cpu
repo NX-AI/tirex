@@ -34,8 +34,8 @@ FROM python:3.11-slim
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
- g++ \
- && rm -rf /var/lib/apt/lists/*
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Bring in packages installed in build stage
 COPY --from=build /usr/local /usr/local
@@ -58,6 +58,6 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["python", "-m", "app.main"]

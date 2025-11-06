@@ -3,11 +3,13 @@
 
 import requests
 import torch
+from conftest import assert_default_prediction_correct, get_default_context
 
 
 def test_http_mean(api_server):
     prediction_length = 2
     context = [[0.0, 1.0, 2.0, 3.0]]
+    context, prediction_length = get_default_context()
     response = requests.post(
         f"{api_server}/forecast/mean",
         json={"context": context, "prediction_length": prediction_length},
@@ -15,11 +17,7 @@ def test_http_mean(api_server):
 
     assert response.status_code == 200
     data = response.json()
-
-    data = torch.tensor(data, dtype=torch.float32)
-    data_ref = torch.tensor([[3.751096248, 4.562105178]], dtype=torch.float32)
-    # bfloat16 tolerances to allow for small differences between CPU and CUDA
-    torch.testing.assert_close(data, data_ref, rtol=1.6e-2, atol=1e-5)
+    assert_default_prediction_correct(data)
 
 
 def test_http_quantiles(api_server):

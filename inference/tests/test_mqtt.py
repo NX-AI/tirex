@@ -8,8 +8,7 @@ from uuid import uuid4
 
 import paho.mqtt.client as mqtt
 import pytest
-import torch
-from conftest import mqtt_host, mqtt_port
+from conftest import assert_default_prediction_correct, get_default_context, mqtt_host, mqtt_port
 from paho.mqtt.client import MQTTMessage
 
 connect_timeout = 30
@@ -60,7 +59,8 @@ def test_mqtt(message_listener, api_server):
     client.subscribe("tirex/forecast/result")
 
     id = str(uuid4())
-    msg = {"id": id, "context": [[0.0, 1.0, 2.0, 3.0]], "prediction_length": 2}
+    context, prediction_length = get_default_context()
+    msg = {"id": id, "context": context, "prediction_length": prediction_length}
 
     client.publish("tirex/forecast/request", json.dumps(msg))
 
@@ -71,7 +71,4 @@ def test_mqtt(message_listener, api_server):
     payload = json.loads(msg.payload.decode())
     assert payload["id"] == id
 
-    data = torch.tensor(payload["mean"], dtype=torch.float32)
-    data_ref = torch.tensor([[3.751096248, 4.562105178]], dtype=torch.float32)
-    # bfloat16 tolerances to allow for small differences between CPU and CUDA
-    torch.testing.assert_close(data, data_ref, rtol=1.6e-2, atol=1e-5)
+    assert_default_prediction_correct(payload["mean"])

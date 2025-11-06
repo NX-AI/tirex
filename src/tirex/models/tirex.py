@@ -84,6 +84,9 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         predictions = []
         if prediction_length is None:
             prediction_length = self.tokenizer.patch_size
+        if prediction_length <= 0:
+            raise ValueError("prediction_length needs to be > 0")
+
         remaining = -(prediction_length // -self.tokenizer.patch_size)
 
         context = context.to(dtype=torch.float32)

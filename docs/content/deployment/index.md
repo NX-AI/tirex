@@ -90,6 +90,19 @@ mqttx pub -t 'tirex/forecast/request' -h 'broker.emqx.io' -p 1883 -m '{"id": "12
 
 If an error happens during processing the request, that error is published to the topic `tirex/forecast/error`.
 
+### MCP
+
+Start the docker container as explained in the HTTP API section.
+
+To connect the MCP to a tool like Claude Desktop, follow their [guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers). The following line has to be added to the `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "tirex": { "command": "npx", "args": ["-y", "mcp-remote", "http://127.0.0.1:8000/mcp"] }
+  }
+}
+```
+
 ### Configuration Options
 
 You can set these env variables when running the container using the -e env flag, like `docker run -e MODEL_COMPILE=0 ghcr.io/nx-ai/tirex-cpu`

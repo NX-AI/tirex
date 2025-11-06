@@ -7,18 +7,20 @@ import multiprocessing as mp
 from app.config import Settings
 
 
-def run_http(config: Settings):
+def run_http():
     import uvicorn
 
     from app.http_server import app
 
-    uvicorn.run(app, host=config.http_host, port=config.http_port)
+    settings = Settings()
+    uvicorn.run(app, host=settings.http_host, port=settings.http_port)
 
 
-def run_mqtt(config: Settings):
+def run_mqtt():
     from app.mqtt_server import TirexMQTTClient
 
-    client = TirexMQTTClient(config)
+    settings = Settings()
+    client = TirexMQTTClient(settings)
     client.connect()
 
 
@@ -27,10 +29,10 @@ def main():
     config = Settings()
     processes: list[mp.Process] = []
 
-    processes.append(mp.Process(target=run_http, args=(config,), name="HTTP Server"))
+    processes.append(mp.Process(target=run_http, name="HTTP Server"))
 
     if config.mqtt_enabled == 1:
-        processes.append(mp.Process(target=run_mqtt, args=(config,), name="MQTT Server"))
+        processes.append(mp.Process(target=run_mqtt, name="MQTT Server"))
 
     for p in processes:
         p.start()
