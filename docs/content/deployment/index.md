@@ -7,6 +7,7 @@ import DocCardList from '@theme/DocCardList';
 This docker container runs the TiRex model and provides the following APIs to interact with the model:
 - **HTTP API**
 - **MQTT**
+- **MCP**
 
 ### Using the docker container
 
