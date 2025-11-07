@@ -10,6 +10,11 @@ Install with additional input/output adapter:
 pip install 'tirex-ts[gluonts,hfdataset]'
 ```
 
+You can also install TiRex with all extras at once using:
+```sh
+pip install 'tirex-ts[all]'
+```
+
 TiRex is currently only tested on Linux and MacOS.
 
 ## Requirements

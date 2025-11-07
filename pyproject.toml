@@ -31,6 +31,7 @@ cuda = [
     "ninja",
 ]
 notebooks = ["ipykernel", "matplotlib", "pandas", "python-dotenv"]
+plotting = ["matplotlib"]
 gluonts = ["gluonts", "pandas"]
 hfdataset = ["datasets"]
 test = ["fev>=0.6.0", "pytest"]

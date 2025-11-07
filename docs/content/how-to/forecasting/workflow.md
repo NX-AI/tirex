@@ -55,7 +55,7 @@ A forthcoming convenience evaluator will encapsulate the canonical settings for 
 
 ## 5. Visualise & inspect
 
-Refer to the `plot_fc` helper in the [Practice](./practice.md) tutorial to visualise predictions. Visual checks (fan plots, residual plots) help catch data issues that metrics alone might miss.
+Refer to the `tirex.util.plot_forecast` function to visualise predictions. Visual checks (fan plots, residual plots) help catch data issues that metrics alone might miss.
 
 ## 6. Troubleshooting checklist
 

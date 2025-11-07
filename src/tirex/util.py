@@ -1,14 +1,21 @@
 # Copyright (c) NXAI GmbH.
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import fields
 from functools import partial
 from math import ceil
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
+
+COLOR_CONTEXT = "#4a90d0"
+COLOR_FORECAST = "#d94e4e"
+COLOR_GROUND_TRUTH = "#4a90d0"
+COLOR_CUTOFF_LINE = "#000000"
+COLOR_QUANTILES = "#d94e4e"
+ALPHA_QUANTILES = 0.1
 
 
 def frequency_resample(
@@ -627,3 +634,111 @@ def select_quantile_subset(quantiles: torch.Tensor, quantile_levels: list[float]
     quantile_levels_idx = [trained_quantiles.index(q) for q in quantile_levels]
     quantiles_idx = torch.tensor(quantile_levels_idx, dtype=torch.long, device=quantiles.device)
     return torch.index_select(quantiles, dim=-1, index=quantiles_idx).squeeze(-1)
+
+
+def plot_forecast(
+    context: torch.Tensor | np.ndarray,
+    forecasts: torch.Tensor | np.ndarray | None = None,
+    ground_truth: torch.Tensor | np.ndarray | None = None,
+    ax=None,
+    x: Sequence | None = None,
+    quantiles: tuple[int, int] = (0, 8),
+):
+    """
+    Plots the historical context, optional ground-truth future, and forecast.
+
+    Parameters
+    ----------
+    context : torch.Tensor or np.ndarray
+        The historical time series data to be plotted.
+    forecasts : torch.Tensor or np.ndarray, optional
+        The forecasts data including quantiles, of shape [Q, N],
+        where Q=9 quantiles are required, and N is the number of forecast timesteps.
+    ground_truth : torch.Tensor or np.ndarray, optional
+        The actual future data to compare the forecast against.
+    ax : matplotlib.Axes, optional
+        The matplotlib axes object to plot on.
+    x : Sequence, optional
+        X-axis values (e.g., timestamps or indices) for the data. The sequence must be slicable.
+    quantiles : tuple[int], optional
+        A tuple indicating the indices of the quantiles to use to plot as shaded areas
+        around the median forecast. Set to None to deactivate. Default is (0, 8).
+
+    Returns
+    -------
+    matplotlib.Axes
+        The Axes object with the plotted forecast.
+    """
+    try:
+        from matplotlib import pyplot as plt
+    except ImportError as e:
+        raise ImportError(
+            "'plot_forecast' requires matplotlib to be installed. "
+            "Please install TiRex package with plotting support via "
+            "\"pip install 'tirex-ts[plotting]'\"."
+        ) from e
+
+    if quantiles is not None and len(quantiles) != 2:
+        raise ValueError(
+            "quantiles must either be a collection of two values for min- and max quantile, respectively, or None."
+        )
+
+    if ax is None:
+        # default to current axis
+        ax = plt.gca()
+
+    # determine all lenghts for clarity
+    context_size = len(context)
+    forecast_size = len(forecasts) if forecasts is not None else 0
+    ground_truth_size = len(ground_truth) if ground_truth is not None else 0
+    full_size = context_size + max(forecast_size, ground_truth_size)
+
+    if x is None:
+        x = range(full_size)
+    elif len(x) < full_size:
+        raise ValueError(
+            "Not enough 'x' values provided to have one for every timestep in context, forecast, and ground truth window."
+        )
+
+    # plot context
+    ax.plot(x[:context_size], context, label="Ground Truth Context", color=COLOR_CONTEXT)
+
+    # plot ground truth if supplied
+    if ground_truth is not None:
+        ax.plot(
+            x[context_size : context_size + ground_truth_size],
+            ground_truth,
+            label="Ground Truth Future",
+            color=COLOR_GROUND_TRUTH,
+            linestyle="--",
+        )
+
+    # plot forecasts if supplied
+    # forecasts are a 2D array with quantiles as rows, and data for each timestep as columns
+    if forecasts is not None:
+        median_forecast = forecasts[:, 4]
+        forecast_x = x[context_size : context_size + forecast_size]
+        ax.plot(forecast_x, median_forecast, label="Forecast (Median)", color=COLOR_FORECAST)
+
+        if quantiles is not None:
+            min_quantile, max_quantile = quantiles
+            lower_bound = forecasts[:, min_quantile]
+            upper_bound = forecasts[:, max_quantile]
+
+            ax.fill_between(
+                forecast_x,
+                lower_bound,
+                upper_bound,
+                color=COLOR_QUANTILES,
+                alpha=ALPHA_QUANTILES,
+                label=f"Forecast {(min_quantile + 1) * 10}% - {(max_quantile + 1) * 10}% Quantiles",
+            )
+
+    if ground_truth is not None or forecasts is not None:
+        ax.axvline(x[context_size], color=COLOR_CUTOFF_LINE, linestyle=":")
+
+    ax.set_xlim(left=x[0])
+    ax.legend()
+    ax.grid()
+
+    return ax

@@ -8,7 +8,8 @@ In order to utilise TiRex, make sure to either locally install it in your prefer
 
 ## 1. Install Tirex
 ```sh
-pip install tirex-ts
+# install with the extra 'plotting' for plotting support
+pip install 'tirex-ts[plotting]'
 ```
 
 ## 2. Import TiRex and supporting libraries
@@ -18,51 +19,14 @@ pip install tirex-ts
 # standard imports
 import pandas as pd
 import numpy as np
-
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 # TiRex specific imports
 from tirex import load_model
-```
+from tirex.util import plot_forecast
 
-## 2a. Plot forecast helper
-Use this convenience function to visualise contexts, optional ground-truth futures, and the quantile output returned by `model.forecast`.
-
-```python
-def plot_fc(ctx, real_future_values=None, forecasts=None):
-    """Plot context, optional ground-truth future, and forecast quantiles."""
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    original_x = range(len(ctx))
-    ax.plot(original_x, ctx, label="Ground Truth Context", color="#4a90d9")
-
-    if real_future_values is not None:
-        future_x = range(len(ctx), len(ctx) + len(real_future_values))
-        ax.plot(future_x, real_future_values, label="Ground Truth Future", color="#4a90d9", linestyle="--")
-        ax.axvline(len(ctx), color="#4a90d9", linestyle=":")
-
-    if forecasts is not None:
-        # Forecasts are a 2D tensor with quantiles as rows.
-        median_forecast = forecasts[:, 4].numpy()
-        lower_bound = forecasts[:, 0].numpy()
-        upper_bound = forecasts[:, 8].numpy()
-
-        forecast_x = range(len(ctx), len(ctx) + len(median_forecast))
-        ax.plot(forecast_x, median_forecast, label="Forecast (Median)", color="#d94e4e")
-        ax.fill_between(
-            forecast_x,
-            lower_bound,
-            upper_bound,
-            color="#d94e4e",
-            alpha=0.1,
-            label="Forecast 10% - 90% Quantiles",
-        )
-
-    plt.xlim(left=0)
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+# set default figure size for all plots
+plt.rcParams['figure.figsize'] = (12, 6)
 ```
 
 ## 3. Load a TiRex model
@@ -74,7 +38,7 @@ model = load_model("NX-AI/TiRex")
 ```
 
 ## 4. Toy Example - Sine Wave
-Use the `plot_fc` helper defined above to visualise how the model behaves on a simple sine wave.
+Use the `plot_forecast` utility function provided in our framework to visualise how the model behaves on a simple sine wave.
 
 ```python
 # generate a simple sine wave
@@ -87,11 +51,22 @@ sin_context, sin_future = np.split(sin, [-prediction_length])
 # make a forecast based on the context
 # model.forecast() returns quantiles and a mean of the prediction
 forecast_quantiles, forecast_mean = model.forecast(sin_context, prediction_length=prediction_length)
+
 # shape of forecasts
 forecast_quantiles.shape, forecast_mean.shape
+```
 
-# we need to remove (squeeze) the batch dimension from the returned tensors
-plot_fc(sin_context, sin_future, forecast_quantiles.squeeze())
+```python
+(torch.Size([1, 20, 9]), torch.Size([1, 20]))
+```
+
+```python
+plot_forecast(
+    context=sin_context,
+    # we need to remove (squeeze) the batch dimension from the returned tensors
+    forecasts=forecast_quantiles.squeeze(),
+    ground_truth=sin_future
+)
 ```
 
 ![Sine wave forecast](/img/sine_wave.png)
@@ -108,7 +83,6 @@ data_base_url = "https://raw.githubusercontent.com/NX-AI/tirex/refs/heads/main/t
 
 # short horizon example: air passengers per month
 ctx_s, future_s = np.split(pd.read_csv(f"{data_base_url}/air_passengers.csv").values.reshape(-1), [-59])
-
 ```
 
 ### Short Horizon Forecast
@@ -118,7 +92,7 @@ The short horizon forecast data example contains number of air passengers per mo
 ```python
 # plot time series
 print("Short series (number of air passengers per month):")
-plot_fc(ctx_s)
+plot_forecast(context=ctx_s)
 ```
 ![Short horizon sample](/img/short_horizon_sample.png)
 
@@ -126,7 +100,7 @@ plot_fc(ctx_s)
 ```python
 # plot time series with future values
 print("Short series (number of air passengers per month):")
-plot_fc(ctx_s, future_s)
+plot_forecast(context=ctx_s, ground_truth=future_s)
 ```
 ![Short horizon with future values](/img/short_horizon_future.png)
 
@@ -136,7 +110,7 @@ prediction_length = 12
 quantiles_s, mean_s = model.forecast(ctx_s, prediction_length=prediction_length)
 
 print(f"Short series (number of air passengers per month): {prediction_length=}")
-plot_fc(ctx_s, future_s, quantiles_s[0])
+plot_forecast(context=ctx_s, ground_truth=future_s, forecasts=quantiles_s[0])
 ```
 ![Short horizon prediction length 12](/img/short_horizon_prediction_l12.png)
 
@@ -166,7 +140,8 @@ ctx_l, future_l = np.split(pd.read_csv(f"{data_base_url}/loop_seattle_5T.csv").v
 quantiles_l, mean_l = model.forecast(ctx_l, prediction_length=prediction_length)
 
 print(f"Long series (spatio-temporal speed information of the Seattle freeway system): {prediction_length=}")
-plot_fc(ctx_l, future_l, quantiles_l[0])
+plot_forecast(context=ctx_l, ground_truth=future_l, forecasts=quantiles_l[0])
+```
 ![Long horizon sample](/img/long_horizon_prediction_l512.png)
 
 
@@ -176,7 +151,8 @@ plot_fc(ctx_l, future_l, quantiles_l[0])
 prediction_length = 768
 
 quantiles_l_768, mean_l_768 = model.forecast(ctx_l, prediction_length=prediction_length)
-plot_fc(ctx_l, future_l, quantiles_l_768[0])
+plot_forecast(context=ctx_l, ground_truth=future_l, forecasts=quantiles_l_768[0])
+```
 
 ![Long horizon sample](/img/long_horizon_prediction_l768.png)
 
@@ -185,7 +161,7 @@ plot_fc(ctx_l, future_l, quantiles_l_768[0])
 prediction_length = 1024
 
 quantiles_l_1024, mean_l_1024 = model.forecast(ctx_l, prediction_length=prediction_length)
-plot_fc(ctx_l, future_l, quantiles_l_1024[0])
+plot_forecast(context=ctx_l, ground_truth=future_l, forecasts=quantiles_l_1024[0])
 ```
 ![Long horizon sample](/img/long_horizon_prediction_l1024.png)
 
