@@ -4,6 +4,7 @@ on:
     workflows: ['Publish Python Package']
     types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-and-push-docker-images:
@@ -12,7 +13,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'NX-AI/tirex' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && github.repository == 'NX-AI/tirex' }}
 
     steps:
     - uses: actions/checkout@v5
