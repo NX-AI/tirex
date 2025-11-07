@@ -2,6 +2,7 @@
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
 import json
+import time
 
 import paho.mqtt.client as mqtt
 import requests
@@ -22,6 +23,7 @@ class TirexMQTTClient:
         self.client.on_message = self.on_message
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
+        self.http_url = f"http://{self.config.http_host}:{self.config.http_port}"
 
     def on_message(self, client, userdata, msg):
         try:
@@ -39,7 +41,7 @@ class TirexMQTTClient:
 
     def predict(self, context, prediction_length):
         response = requests.post(
-            f"http://{self.config.http_host}:{self.config.http_port}/forecast/quantiles",
+            f"{self.http_url}/forecast/quantiles",
             json={"context": context, "prediction_length": prediction_length},
         )
 
@@ -52,6 +54,8 @@ class TirexMQTTClient:
 
     def connect(self, keepalive=60):
         try:
+            print(f"MQTT is waiting for the HTTP server at {self.http_url} to load the model and go online")
+            self.wait_for_api()
             print(f"Connecting to MQTT broker at {self.config.mqtt_broker_host}:{self.config.mqtt_broker_port}")
             self.client.connect(self.config.mqtt_broker_host, self.config.mqtt_broker_port, keepalive)
             self.client.loop_forever()
@@ -73,3 +77,14 @@ class TirexMQTTClient:
     def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
         if reason_code != 0:
             print(f"Unexpected disconnection from MQTT broker with code: {reason_code}")
+
+    def wait_for_api(self, timeout=300):
+        for _ in range(timeout):
+            try:
+                response = requests.get(f"{self.http_url}/health")
+                if response.status_code == 200:
+                    return
+            except:
+                pass
+            time.sleep(1)
+        raise TimeoutError(f"MQTT can't connect to {self.http_url} in {timeout} seconds!")

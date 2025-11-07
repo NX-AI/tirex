@@ -3,6 +3,7 @@
 This docker container runs the TiRex model and provides the following APIs to interact with the model:
 - **HTTP API**
 - **MQTT**
+- **MCP**
 
 ## Using the docker container
 
@@ -73,7 +74,7 @@ If an error happens during processing the request, that error is published to th
 
 Start the docker container as explained in the HTTP API section.
 
-To connect the MCP to a tool like Claude Desktop, follow their [guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers). The following line has to be added to the `claude_desktop_config.json`:
+To connect the MCP to a tool like Claude Desktop, follow their [guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers). The following `tirex` line has to be added to the `claude_desktop_config.json` under `mcpServers`:
 ```json
 {
   "mcpServers": {
