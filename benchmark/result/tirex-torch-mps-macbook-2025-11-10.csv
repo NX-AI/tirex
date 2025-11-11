@@ -1,0 +1,4 @@
+date,model,backend,device,compiled,hardware,batch_size,context_length,prediction_length,time,throughput
+2025-11-10,NX-AI/TiRex,torch,mps,True,macbook,1,2048,32,0.033,29.57
+2025-11-10,NX-AI/TiRex,torch,mps,True,macbook,1,2048,64,0.051,19.246
+2025-11-10,NX-AI/TiRex,torch,mps,True,macbook,1,2048,128,0.094,10.582

@@ -1,0 +1,10 @@
+date,model,backend,device,compiled,hardware,batch_size,context_length,prediction_length,time,throughput
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,1,2048,32,0.026,37.351
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,1,2048,64,0.052,19.165
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,1,2048,128,0.103,9.7
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,16,2048,32,0.031,501.542
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,16,2048,64,0.061,261.282
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,16,2048,128,0.119,134.03
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,256,2048,32,0.284,899.69
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,256,2048,64,0.565,452.966
+2025-11-10,NX-AI/TiRex,torch,cuda,True,H100,256,2048,128,1.125,227.393

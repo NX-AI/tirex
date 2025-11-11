@@ -1,0 +1,10 @@
+date,model,backend,device,compiled,hardware,batch_size,context_length,prediction_length,time,throughput
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,1,2048,32,0.165,6.055
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,1,2048,64,0.323,3.092
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,1,2048,128,0.607,1.646
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,16,2048,32,1.875,8.53
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,16,2048,64,3.711,4.311
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,16,2048,128,7.486,2.137
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,256,2048,32,24.243,10.559
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,256,2048,64,48.703,5.256
+2025-11-10,NX-AI/TiRex,torch,cpu,False,macbook,256,2048,128,96.744,2.646
