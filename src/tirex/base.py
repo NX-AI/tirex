@@ -36,7 +36,7 @@ def parse_hf_repo_id(path):
 def parse_model_string(model_string):
     if VERSION_DELIMITER in model_string:
         parts = model_string.split(VERSION_DELIMITER)
-        model_id, version = parts[0], parts[0]
+        model_id, version = parts[0], parts[1]
     else:
         model_id = model_string
         version = None
