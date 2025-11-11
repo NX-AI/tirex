@@ -1,0 +1,103 @@
+name: General
+description: other issues not related to the above
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting your bug report.
+        Before submitting your request, please review past submissions to ensure that it is not a duplicate of a known issue.
+        Please provide as much information as possible to help us reproduce and fix the issue.
+  - type: textarea
+    id: issue-descript
+    attributes:
+      label: Describe the issue
+      placeholder: Include your issue description, expected behavior, and any additional context necessary for your issue to be addressed (e.g., screenshots, etc.).
+    validations:
+      required: true
+  - type: textarea
+    id: reproducibility
+    attributes:
+      label: To reproduce
+      placeholder: Steps to reproduce the issue. Please provide code if possible.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        # System information
+        For each of the following items, provide the information listed to ensure that your request is addressed in a timely manner.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - Mac
+    validations:
+      required: false
+  - type: input
+    id: os-dist
+    attributes:
+      label: OS Version
+      placeholder: ex. Ubuntu 22.04
+    validations:
+      required: false
+  - type: input
+    id: tirex-version
+    attributes:
+      label: Tirex Version
+    validations:
+      required: false
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture
+      options:
+        - X64
+        - X86
+        - ARM64
+        - ARM32
+        - Other / Unknown
+    validations:
+      required: false
+  - type: dropdown
+    id: ep
+    attributes:
+      label: Tirex Backend
+      options:
+        - torch
+        - cuda
+    validations:
+      required: false
+  - type: dropdown
+    id: device-type
+    attributes:
+      label: Tirex Device Type
+      options:
+        - cpu
+        - cuda
+    validations:
+      required: false
+  - type: input
+    id: cuda-version
+    attributes:
+      label: CUDA Version
+      placeholder: ex. CUDA 12.2
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "Low"
+        - "Medium"
+        - "High"
+        - "Critical"
+      default: 1
+    validations:
+      required: false
