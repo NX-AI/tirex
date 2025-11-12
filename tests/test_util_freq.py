@@ -87,9 +87,9 @@ def test_frequency_resample_nifr_clamps_large_factors_to_identity():
 
 def test_run_fft_analysis_short_series_returns_empty():
     freqs, spec, peaks = run_fft_analysis(np.array([1.0]))
-    assert freqs.size == 0
-    assert spec.size == 0
-    assert peaks.size == 0
+    assert freqs.numel() == 0
+    assert spec.numel() == 0
+    assert peaks.numel() == 0
 
 
 def test_run_fft_analysis_detects_primary_frequency_with_nans():
@@ -106,7 +106,7 @@ def test_run_fft_analysis_detects_primary_frequency_with_nans():
         peak_prominence=0.05,
     )
 
-    assert peaks.size > 0
-    dominant_freq = freqs[peaks[0]]
+    assert peaks.numel() > 0
+    dominant_freq = freqs[peaks[0]].item()
     assert math.isclose(dominant_freq, 1 / period, rel_tol=1e-2)
-    assert math.isclose(float(spec.max()), 1.0, rel_tol=1e-5)
+    assert math.isclose(spec.max().item(), 1.0, rel_tol=1e-5)

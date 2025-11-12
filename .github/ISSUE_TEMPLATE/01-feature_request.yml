@@ -1,0 +1,47 @@
+name: Feature Request
+description: Request for a new feature
+title: "[Feature Request]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+         Before submitting your request, please review past submissions to ensure that it is not a duplicate of a known feature request.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: "Describe the feature request"
+      description: "feature description"
+      placeholder: "A clear and concise description of the feature you would like to have implemented."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: "Describe scenario use case"
+      description: "use case description"
+      placeholder: "The capability and/or customer usage scenario this request supports."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional Context"
+      placeholder: "Additional information or context about the feature request."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "Low"
+        - "Medium"
+        - "High"
+      default: 1
+    validations:
+      required: false
