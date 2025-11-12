@@ -45,12 +45,12 @@ pip install tirex-ts
 
 Install with additional input/output adapter:
 ```sh
-pip install tirex-ts[gluonts,hfdataset]
+pip install "tirex-ts[gluonts,hfdataset]"
 ```
 
 You can also install TiRex with all extras at once using:
 ```sh
-pip install tirex-ts[all]
+pip install "tirex-ts[all]"
 ```
 
 TiRex is currently only tested on Linux and MacOS.
@@ -92,7 +92,7 @@ The CUDA kernels are automatically used when the xlstm package is installed.
 
 To install TiRex with the CUDA kernels run:
 ```sh
-pip install tirex-ts[cuda,gluonts,hfdataset]
+pip install "tirex-ts[cuda,gluonts,hfdataset]"
 ```
 
 Explicitly set the custom CUDA backend:
