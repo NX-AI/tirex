@@ -4,8 +4,8 @@
 from collections.abc import Callable, Sequence
 from dataclasses import fields
 from functools import partial
-from math import ceil
-from typing import Literal
+from math import ceil, isfinite
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -77,6 +77,7 @@ def frequency_resample(
     - For short horizons (prediction_length < 100), resampling is disabled and the factor is set to 1.0.
     - The factor is clamped to at most 1.0 to avoid upsampling the context.
     """
+
     sample_factor = frequency_factor(
         ts,
         max_period=max_period,
@@ -173,15 +174,17 @@ def frequency_factor(
         # NOTE: be careful when min_period is not matching patch_size, it can create unexpected scaling factors!
         min_period = patch_size
 
-    # Ensure CPU numpy array for FFT analysis
-    ts_np = ts.detach().cpu().numpy() if isinstance(ts, torch.Tensor) else np.asarray(ts)
+    if isinstance(ts, torch.Tensor):
+        ts_tensor = ts.to(torch.float32)
+    else:
+        ts_tensor = torch.as_tensor(ts, dtype=torch.float32)
 
     # NOTE: If the series is shorter than max_period *2, FFT may not be accurate, to avoid detecting these peaks, we don't scale
-    if ts_np.size < max_period * 2:
+    if ts_tensor.numel() < max_period * 2:
         return 1.0
 
     freqs, specs, peak_idc = run_fft_analysis(
-        ts_np,
+        ts_tensor,
         scaling="amplitude",
         peak_prominence=peak_prominence,
         min_period=min_period,
@@ -190,18 +193,18 @@ def frequency_factor(
     )
 
     # No detectable peaks -> keep original sampling
-    if peak_idc.size == 0:
+    if peak_idc.numel() == 0:
         return 1.0
 
     # Choose initial candidate as the highest-amplitude peak
-    chosen_idx = int(peak_idc[0])
+    chosen_idx = int(peak_idc[0].item())
 
     # If two peaks exist, check for ~2x harmonic relation and prefer the higher/lower one
-    if peak_idc.size >= 2:
-        idx_a = int(peak_idc[0])  # highest amplitude
-        idx_b = int(peak_idc[1])  # second highest amplitude
-        f_a = float(freqs[idx_a])
-        f_b = float(freqs[idx_b])
+    if peak_idc.numel() >= 2:
+        idx_a = int(peak_idc[0].item())  # highest amplitude
+        idx_b = int(peak_idc[1].item())  # second highest amplitude
+        f_a = float(freqs[idx_a].item())
+        f_b = float(freqs[idx_b].item())
 
         # Determine lower/higher frequency
         low_f = min(f_a, f_b)
@@ -216,10 +219,10 @@ def frequency_factor(
                 elif selection_method == "high_harmonic":
                     chosen_idx = idx_a if f_a > f_b else idx_b
 
-    chosen_freq = float(freqs[chosen_idx])
+    chosen_freq = float(freqs[chosen_idx].item())
 
     # Guard against zero or non-finite frequency
-    if not np.isfinite(chosen_freq) or chosen_freq <= 0:
+    if not isfinite(chosen_freq) or chosen_freq <= 0:
         return 1.0
 
     # Convert to period and compute scaling factor so one period fits one patch
@@ -228,19 +231,33 @@ def frequency_factor(
     factor = round(factor, 4)
 
     # Guard against factor being negative
-    if not np.isfinite(factor) or factor <= 0:
+    if not isfinite(factor) or factor <= 0:
         return 1.0
 
     # nearest interger fraction rounding (nifr)
     if nifr_enabled:
-        int_fractions = np.concatenate([[1], 1 / np.arange(nifr_start_integer, nifr_end_integer + 1)])
-        diff = np.abs(factor - int_fractions)
-        min_diff_idc = np.argmin(diff)
-        factor = int_fractions[min_diff_idc]
+        device = ts_tensor.device
+        dtype = torch.float32
+        base = torch.ones(1, device=device, dtype=dtype)
+        if nifr_end_integer >= nifr_start_integer:
+            denominators = torch.arange(nifr_start_integer, nifr_end_integer + 1, device=device, dtype=dtype)
+            candidate_factors = torch.cat([base, 1.0 / denominators])
+        else:
+            candidate_factors = base
+
+        factor_tensor = torch.tensor(factor, device=device, dtype=dtype)
+        diff = torch.abs(factor_tensor - candidate_factors)
+        min_idx = int(torch.argmin(diff).item())
+        factor_tensor = candidate_factors[min_idx]
 
         if nifr_clamp_large_factors:
             # Clamp everything between 1 and 1/nifr_start_integer to 1, that is no scaling
-            factor = factor if factor < int_fractions[1] else 1
+            if candidate_factors.numel() > 1:
+                clamp_threshold = candidate_factors[1]
+                one = torch.tensor(1.0, device=device, dtype=dtype)
+                factor_tensor = torch.where(factor_tensor < clamp_threshold, factor_tensor, one)
+
+        factor = float(factor_tensor.item())
 
     return float(factor)
 
@@ -439,57 +456,69 @@ def run_fft_analysis(
     peaks_idx : ndarray
         Indices into f of detected peaks.
     """
-    y = np.asarray(y, dtype=float)
-    if y.ndim != 1:
-        y = y.reshape(-1)
-    n = y.size
+    if isinstance(y, torch.Tensor):
+        y_tensor = y.to(torch.float32)
+    else:
+        y_tensor = torch.as_tensor(y, dtype=torch.float32)
+
+    if y_tensor.ndim != 1:
+        y_tensor = y_tensor.reshape(-1)
+
+    n = y_tensor.numel()
+    device = y_tensor.device
+
     if n < 2:
-        return np.array([]), np.array([]), np.array([])
+        empty = torch.empty(0, dtype=y_tensor.dtype, device=device)
+        return empty, empty, empty
 
     # Fill NaNs linearly (handles edge NaNs as well)
-    y = _nan_linear_interpolate(y)
+    y_tensor = _nan_linear_interpolate(y_tensor)
 
     if detrend:
-        y = y - np.mean(y)
+        y_tensor = y_tensor - torch.mean(y_tensor)
 
     # Windowing
     if window == "hann":
-        w = np.hanning(n)
-        yw = y * w
+        w = torch.hann_window(n, device=device, dtype=y_tensor.dtype)
+        yw = y_tensor * w
         # average window power (for proper amplitude/power normalization)
-        w_power = np.sum(w**2) / n
+        w_power = torch.sum(w.square()) / n
     elif window is None:
-        yw = y
-        w_power = 1.0
+        yw = y_tensor
+        w_power = torch.tensor(1.0, device=device, dtype=y_tensor.dtype)
     else:
         raise ValueError("window must be either 'hann' or None")
 
     # FFT (one-sided)
-    Y = np.fft.rfft(yw)
-    f = np.fft.rfftfreq(n, d=dt)  # cycles per unit time
+    Y = torch.fft.rfft(yw)
+    f = torch.fft.rfftfreq(n, d=dt, device=device, dtype=y_tensor.dtype)  # cycles per unit time
 
     if scaling == "raw":
-        spec = np.abs(Y)
+        spec = torch.abs(Y)
     elif scaling == "amplitude":
         # One-sided amplitude with window power compensation
-        spec = np.abs(Y) / (n * np.sqrt(w_power))
-        if n % 2 == 0:
-            spec[1:-1] *= 2.0
-        else:
-            spec[1:] *= 2.0
+        spec = torch.abs(Y) / (n * torch.sqrt(w_power))
+        if spec.numel() > 1:
+            if n % 2 == 0 and spec.numel() > 2:
+                spec[1:-1] *= 2.0
+            else:
+                spec[1:] *= 2.0
     elif scaling == "power":
         # One-sided power (not PSD)
-        spec = (np.abs(Y) ** 2) / (n**2 * w_power)
-        if n % 2 == 0:
-            spec[1:-1] *= 2.0
-        else:
-            spec[1:] *= 2.0
+        spec = (torch.abs(Y) ** 2) / (n**2 * w_power)
+        if spec.numel() > 1:
+            if n % 2 == 0 and spec.numel() > 2:
+                spec[1:-1] *= 2.0
+            else:
+                spec[1:] *= 2.0
     else:
         raise ValueError("scaling must be 'amplitude', 'power', or 'raw'")
 
     # Normalize the spectrum by its maximum value
-    if spec.max() > 0:
-        spec = spec / spec.max()
+    if spec.numel() > 0:
+        max_val = torch.max(spec)
+        if max_val > 0:
+            spec = spec / max_val
 
     # Find peaks in the spectrum
     peaks_idx = custom_find_peaks(
@@ -505,20 +534,75 @@ def run_fft_analysis(
     return f, spec, peaks_idx
 
 
-def _nan_linear_interpolate(y: np.ndarray) -> np.ndarray:
-    y = y.astype(np.float32)
+def _nan_linear_interpolate(y: torch.Tensor) -> torch.Tensor:
+    """
+    Linearly interpolate NaN values in a 1D torch tensor.
+    """
+    y = y.to(torch.float32)
     if y.ndim != 1:
         y = y.reshape(-1)
-    n = y.size
-    mask = np.isfinite(y)
+    n = y.numel()
+    mask = torch.isfinite(y)
     if mask.all():
         return y
     if (~mask).all():
-        return np.zeros(n, dtype=np.float32)
-    idx = np.arange(n)
-    y_interp = y.copy()
-    y_interp[~mask] = np.interp(idx[~mask], idx[mask], y[mask])
-    return y_interp
+        return torch.zeros(n, dtype=y.dtype, device=y.device)
+
+    idx = torch.arange(n, device=y.device)
+    valid_idx = idx[mask]
+    valid_vals = y[mask]
+
+    insert_pos = torch.searchsorted(valid_idx, idx)
+    prev_pos = torch.clamp(insert_pos - 1, min=0)
+    next_pos = torch.clamp(insert_pos, max=valid_idx.numel() - 1)
+
+    prev_idx = valid_idx[prev_pos]
+    next_idx = valid_idx[next_pos]
+
+    prev_vals = valid_vals[prev_pos]
+    next_vals = valid_vals[next_pos]
+
+    has_prev = insert_pos > 0
+    has_next = insert_pos < valid_idx.numel()
+
+    result = y.clone()
+    missing = ~mask
+    if missing.any():
+        idx_missing = idx[missing]
+        prev_idx_missing = prev_idx[missing]
+        next_idx_missing = next_idx[missing]
+        prev_vals_missing = prev_vals[missing]
+        next_vals_missing = next_vals[missing]
+        has_prev_missing = has_prev[missing]
+        has_next_missing = has_next[missing]
+
+        interp_vals = torch.empty_like(idx_missing, dtype=y.dtype)
+
+        both_mask = has_prev_missing & has_next_missing
+        if both_mask.any():
+            denom = (next_idx_missing[both_mask] - prev_idx_missing[both_mask]).to(y.dtype)
+            denom = torch.where(denom == 0, torch.ones_like(denom), denom)
+            t = (idx_missing[both_mask].to(y.dtype) - prev_idx_missing[both_mask].to(y.dtype)) / denom
+            interp_vals[both_mask] = (
+                prev_vals_missing[both_mask] + (next_vals_missing[both_mask] - prev_vals_missing[both_mask]) * t
+            )
+
+        left_only = has_prev_missing & ~has_next_missing
+        if left_only.any():
+            interp_vals[left_only] = prev_vals_missing[left_only]
+
+        right_only = ~has_prev_missing & has_next_missing
+        if right_only.any():
+            interp_vals[right_only] = next_vals_missing[right_only]
+
+        # Handle corner case where neither prev nor next exists (shouldn't happen due to earlier checks)
+        neither = ~(both_mask | left_only | right_only)
+        if neither.any():
+            interp_vals[neither] = 0.0
+
+        result[missing] = interp_vals
+
+    return result
 
 
 def resampling_factor(inverted_freq, path_size):
@@ -532,13 +616,14 @@ def resampling_factor(inverted_freq, path_size):
 
 
 def custom_find_peaks(
-    f,
-    spec,
-    max_peaks=5,
-    prominence_threshold=0.1,
-    min_period=64,
-    max_period=1000,
-    bandpass_filter=True,
+    f: torch.Tensor,
+    spec: torch.Tensor,
+    *,
+    max_peaks: int = 5,
+    prominence_threshold: float = 0.1,
+    min_period: int = 64,
+    max_period: int = 1000,
+    bandpass_filter: bool = True,
 ):
     """
     Finds prominent peaks in a spectrum using a simple custom logic.
@@ -556,60 +641,78 @@ def custom_find_peaks(
         The maximum number of peaks to return.
     prominence_threshold : float
         The minimum height for a peak to be considered prominent.
+    min_period : int
+        Minimum period to consider for peaks.
+    max_period : int
+        Maximum period to consider for peaks.
+    bandpass_filter : bool
+        If True, suppress very low frequencies below 1 / max_period before peak search.
 
     Returns
     -------
-    np.ndarray
-        An array of indices of the detected peaks in the spectrum. Returns an
-        empty array if no prominent peaks are found.
+    torch.Tensor
+        Long tensor of indices of detected peaks in descending order of prominence.
     """
-    if len(spec) < 5:  # Need at least 5 points to exclude last two bins
-        return np.array([], dtype=int)
+    if spec.numel() < 5:  # Need at least 5 points to exclude last two bins
+        return spec.new_empty(0, dtype=torch.long)
 
     if bandpass_filter:  # only truly filter low frequencies, high frequencies are dealt with later
         min_freq = 1 / max_period
-        freq_mask = f >= min_freq
+        freq_mask = (f >= min_freq).to(spec.dtype)
         spec = spec * freq_mask
 
     # Find all local maxima, excluding the last two bins
-    local_maxima_indices = []
-    for i in range(1, len(spec) - 2):
-        if spec[i] > spec[i - 1] and spec[i] > spec[i + 1]:
-            local_maxima_indices.append(i)
+    candidates = torch.arange(1, spec.size(0) - 2, device=spec.device, dtype=torch.long)
+    if candidates.numel() == 0:
+        return spec.new_empty(0, dtype=torch.long)
 
-    if not local_maxima_indices:
-        return np.array([], dtype=int)
+    center = spec[candidates]
+    left = spec[candidates - 1]
+    right = spec[candidates + 1]
+    local_mask = (center > left) & (center > right)
+
+    if not local_mask.any():
+        return spec.new_empty(0, dtype=torch.long)
+
+    local_maxima_indices = candidates[local_mask]
 
     # Filter by prominence (height)
-    prominent_peaks = []
-    for idx in local_maxima_indices:
-        if spec[idx] > prominence_threshold:
-            prominent_peaks.append((idx, spec[idx]))
+    heights = spec[local_maxima_indices]
+    prominence_mask = heights > prominence_threshold
+    if not prominence_mask.any():
+        return spec.new_empty(0, dtype=torch.long)
 
-    # If no peaks are above the threshold, return an empty list
-    if not prominent_peaks:
-        return np.array([], dtype=int)
+    prominent_indices = local_maxima_indices[prominence_mask]
+
+    prominent_heights = spec[prominent_indices]
 
     # Check for clear peaks below min_period (do lowpass filter)
-    for idx, _ in prominent_peaks:
-        period = 1 / f[idx]
+    for idx in prominent_indices.tolist():
+        freq_val = float(f[idx].item())
+        if freq_val <= 0:
+            continue
+        period = 1.0 / freq_val
         if period < min_period:
-            return np.array([], dtype=int)
+            return spec.new_empty(0, dtype=torch.long)
 
     # Filter by period
     period_filtered_peaks = []
-    for idx, prominence in prominent_peaks:
-        period = 1 / f[idx]
+    for idx, prominence in zip(prominent_indices.tolist(), prominent_heights.tolist()):
+        freq_val = float(f[idx].item())
+        if freq_val <= 0:
+            continue
+        period = 1.0 / freq_val
 
         if min_period <= period <= max_period:
             period_filtered_peaks.append((idx, prominence))
 
     if not period_filtered_peaks:
-        return np.array([], dtype=int)
+        return spec.new_empty(0, dtype=torch.long)
 
     # Sort by height and return the top `max_peaks`
     period_filtered_peaks.sort(key=lambda x: x[1], reverse=True)
-    peak_indices = np.array([p[0] for p in period_filtered_peaks[:max_peaks]], dtype=int)
+    top_indices = [p[0] for p in period_filtered_peaks[:max_peaks]]
+    peak_indices = torch.tensor(top_indices, dtype=torch.long, device=spec.device)
 
     return peak_indices
 
