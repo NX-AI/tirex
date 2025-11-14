@@ -22,3 +22,19 @@ jobs:
 
       - name: Run core tests
         run: pytest tests -s
+
+  load-model-tests-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          # cache: 'pip' # Caching didn't make the CI faster and cache is quite big (4GB)
+
+      - name: Install base dependencies
+        run: pip install -e ".[test,gluonts,hfdataset]"
+
+      - name: Run load model tests
+        run: pytest tests/test_load_model.py -s

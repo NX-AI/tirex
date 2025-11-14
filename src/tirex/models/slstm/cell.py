@@ -70,8 +70,8 @@ class sLSTMCell(nn.Module):
         if input.device.type != "cuda":
             warnings.warn(
                 f"You use TiRex with sLSTM CUDA kernels BUT DO NOT LOAD THE DEVICE ON A CUDA DEVICE (device type is {input.device.type})!"
-                "This is not supported and calls to the model will likely lead to an error if you dont move your model to a CUDA device!"
-                "If you want to run TiRex on CPU you need to disable sLSTM CUDA kernels but be aware of the downsides (see FAQ)"
+                "This is not supported and calls to the model will likely lead to an error if you don't move your model to a CUDA device!"
+                "If you want to run TiRex on CPU, please select backend='torch' and device='cpu'"
             )
 
         if not hasattr(self, "func"):

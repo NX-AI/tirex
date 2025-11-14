@@ -3,6 +3,7 @@
 
 import logging
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import Literal, TypeVar
 
@@ -60,7 +61,7 @@ class PretrainedModel(ABC):
         if ckp_kwargs is None:
             ckp_kwargs = {}
         if device is None:
-            device = "cuda:0" if backend == "cuda" else "cpu"
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
         if os.path.exists(path):
             print("Loading weights from local directory")
             checkpoint_path = path
@@ -93,7 +94,7 @@ class PretrainedModel(ABC):
 def load_model(
     path: str,
     device: str | None = None,
-    backend: Literal["torch", "cuda"] | None = None,
+    backend: Literal["torch", "cuda"] = "torch",
     compile: bool = False,
     hf_kwargs=None,
     ckp_kwargs=None,
@@ -115,8 +116,22 @@ def load_model(
         model: ForecastModel = load_model("NX-AI/TiRex")
     """
 
-    if backend is None:
-        backend = "torch" if skip_cuda() or not xlstm_available() else "cuda"
+    if backend == "cuda" and not xlstm_available() and torch.cuda.is_available():
+        backend = "torch"
+        warnings.warn(
+            "Switching to 'torch' backend with device='gpu'. In oder to use a CUDA backend, please make sure that xlstm package is installed.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    if device is not None and device.startswith("cuda") and not torch.cuda.is_available():
+        raise ValueError(
+            "CUDA is not available! This could be because:\n"
+            "  - No GPU is present on this machine\n"
+            "  - GPU drivers are not installed or not functioning\n"
+            "  - PyTorch is installed without CUDA support (CPU-only version)\n"
+            "To resolve: use device='cpu' for CPU inference, or install CUDA-enabled PyTorch if a GPU is available."
+        )
 
     try:
         _, model_string = parse_hf_repo_id(path).split("/")
