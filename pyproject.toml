@@ -16,7 +16,6 @@ classifiers = [
 keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning"]
 dependencies = [
     "torch",
-    "einops",
     "huggingface-hub",
     "numpy",
 ]

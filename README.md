@@ -87,7 +87,7 @@ If you are interested in models fine-tuned on your data or with different pretra
 Tirex can use custom CUDA kernels for the sLSTM cells.
 These CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 or later.
-We also highly suggest to use the provided [conda environment spec](./requirements_py26.yaml).
+We also highly suggest to use the provided [conda environment spec](./requirements_cu124.yaml).
 The CUDA kernels are automatically used when the xlstm package is installed.
 
 To install TiRex with the CUDA kernels run:

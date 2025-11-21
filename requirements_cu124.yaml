@@ -1,0 +1,21 @@
+name: tirex-inference
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - cuda=12.4
+  - cuda-nvcc=12.4
+  - gxx_linux-64=13.2.0
+  - compilers
+  - cmake
+  - ninja
+  - cuda-toolkit=12.4
+  - cuda-cccl=12.4
+  - python>=3.11
+  - pip
+  - pip:
+      - --index-url https://download.pytorch.org/whl/cu124
+      - --extra-index-url https://pypi.org/simple
+      - torch
