@@ -63,7 +63,7 @@ TiRex’s classification process can be viewed as a sequence of transformations:
 If you use TiRex for Time Series Classification in your research, please cite our work:
 
 ```bibtex
-@inproceedings{auer:24tirexclassif,
+@inproceedings{auer:25tirexclassification,
     title = {Pre-trained Forecasting Models: Strong Zero-Shot Feature Extractors for Time Series Classification},
     author = {Andreas Auer and Daniel Klotz and Sebastinan B{\"o}ck and Sepp Hochreiter},
     booktitle = {NeurIPS 2025 Workshop on Recent Advances in Time Series Foundation Models (BERT2S)},

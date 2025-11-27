@@ -73,6 +73,8 @@ You can also run it in [Google Colab](https://colab.research.google.com/github/N
 We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifteval.ipynb) and [Chronos-ZS](./examples/chronos_zs/chronos_zs.ipynb).
 
 ## TiRex Classification Model
+[![Paper](https://img.shields.io/static/v1?label=Paper&message=2510.26777&color=B31B1B&logo=arXiv)](http://arxiv.org/abs/2510.26777)
+
 For detailed instructions on using TiRex classification model please visit our [documentation page](https://nx-ai.github.io/tirex/how-to/classification/) and [quick start Notebook](./examples/quick_start_tirex_classification.ipynb).
 
 ## TiRex Docker image
@@ -138,6 +140,15 @@ If you use TiRex in your research, please cite our work:
   booktitle = {The Thirty-Ninth Annual Conference on Neural Information Processing Systems},
   year = {2025}
   url = {https://arxiv.org/abs/2505.23719},
+}
+```
+```bibtex
+@inproceedings{auer:25tirexclassification,
+    title = {Pre-trained Forecasting Models: Strong Zero-Shot Feature Extractors for Time Series Classification},
+    author = {Andreas Auer and Daniel Klotz and Sebastinan B{\"o}ck and Sepp Hochreiter},
+    booktitle = {NeurIPS 2025 Workshop on Recent Advances in Time Series Foundation Models (BERT2S)},
+    year = {2025},
+    url = {https://arxiv.org/abs/2510.26777},
 }
 ```
 
