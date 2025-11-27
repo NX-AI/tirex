@@ -72,6 +72,9 @@ You can also run it in [Google Colab](https://colab.research.google.com/github/N
 
 We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifteval.ipynb) and [Chronos-ZS](./examples/chronos_zs/chronos_zs.ipynb).
 
+## TiRex Classification Model
+For detailed instructions on using TiRex classification model please visit our [documentation page](https://nx-ai.github.io/tirex/how-to/classification/) and [quick start Notebook](./examples/quick_start_tirex_classification.ipynb).
+
 ## TiRex Docker image
 
 For detailed instructions on building and running TiRex in a Docker container, see the [Docker README](./inference/README.md).

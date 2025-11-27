@@ -31,7 +31,19 @@ const sidebars = {
       ],
     },
     { type: 'doc', id: 'how-to/anomaly', className: 'icon-eval' },
-    { type: 'doc', id: 'how-to/classification', className: 'icon-examples' },
+    {
+      type: 'category',
+      label: 'Classification',
+      className: 'icon-examples',
+      link: { type: 'doc', id: 'how-to/classification/index' },
+      collapsible: true,
+      collapsed: true,
+      items: [
+        { type: 'doc', id: 'how-to/classification/theory', className: 'icon-theory' },
+        { type: 'doc', id: 'how-to/classification/workflow', className: 'icon-docs' },
+        { type: 'doc', id: 'how-to/classification/practice', className: 'icon-practice' },
+      ],
+    },
     { type: 'doc', id: 'how-to/evaluation', className: 'icon-metrics' },
 
 

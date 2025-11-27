@@ -6,3 +6,4 @@ TiRex Python API
    :caption: Modules
 
    tirex
+   tirex.classification

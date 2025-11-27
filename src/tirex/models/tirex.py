@@ -58,6 +58,25 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
     def register_name(cls):
         return "TiRex"
 
+    def _adjust_context_length(self, context: torch.Tensor, min_context: int, max_context: int):
+        pad_len = 0
+        if context.shape[-1] > max_context:
+            context = context[..., -max_context:]
+        if context.shape[-1] < min_context:
+            pad_len = min_context - context.shape[-1]
+            pad = torch.full(
+                (context.shape[0], pad_len),
+                fill_value=torch.nan,
+                device=context.device,
+                dtype=context.dtype,
+            )
+            context = torch.concat((pad, context), dim=1)
+        return context, pad_len
+
+    # ===============================
+    #       Forecasting Functions
+    # ===============================
+
     @torch.inference_mode()
     def _forecast_quantiles(
         self,
@@ -106,18 +125,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
     def _forecast_single_step(self, context: torch.Tensor, new_patch_count: int = 1) -> torch.Tensor:
         max_context, min_context = self.config.train_ctx_len, self.config.train_ctx_len
-
-        if context.shape[-1] > max_context:
-            context = context[..., -max_context:]
-        if context.shape[-1] < min_context:
-            pad = torch.full(
-                (context.shape[0], min_context - context.shape[-1]),
-                fill_value=torch.nan,
-                device=context.device,
-                dtype=context.dtype,
-            )
-            context = torch.concat((pad, context), dim=1)
-
+        context, _ = self._adjust_context_length(context, max_context, min_context)
         input_token, tokenizer_state = self.tokenizer.input_transform(context)
         prediction = self._forward_model_tokenized(input_token=input_token, new_patch_count=new_patch_count)
         predicted_token = prediction[:, :, -new_patch_count:, :].to(input_token)  # predicted token
@@ -161,15 +169,57 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         # quantile_preds: [batch_size, num_quantiles, num_token, output_patch_size]
         return quantile_preds
 
-    def _forward_model(self, input: torch.Tensor) -> torch.Tensor:
+    def _forward_model(self, input: torch.Tensor, return_all_hidden: bool = False) -> torch.Tensor:
         hidden_states = self.input_patch_embedding(input)
+        all_hidden_states = []
 
         for block in self.blocks:
             hidden_states = block(hidden_states)
-
+            if return_all_hidden:
+                all_hidden_states.append(hidden_states)
         hidden_states = self.out_norm(hidden_states)
 
+        if return_all_hidden:
+            return self.output_patch_embedding(hidden_states), torch.stack(all_hidden_states, dim=-2)
+
         return self.output_patch_embedding(hidden_states)
+
+    # ===============================
+    #   Context Embedding Functions
+    # ===============================
+    @torch.inference_mode()
+    def _embed_context(
+        self,
+        context: torch.Tensor,
+        max_context: int | None = None,
+    ) -> torch.Tensor:
+        input_embeds, padded_token = self._prepare_context_for_embedding(context, max_context)
+        _, hidden_states = self._forward_model(input_embeds, return_all_hidden=True)
+        # Shape: [batch_size, num_tokens, num_layers, hidden_dim]
+        return hidden_states[:, padded_token:, :, :]
+
+    def _prepare_context_for_embedding(
+        self, context: torch.Tensor, max_context: int | None
+    ) -> tuple[torch.Tensor, int]:
+        max_context = self.config.train_ctx_len if max_context is None else max_context
+        min_context = max(self.config.train_ctx_len, max_context)
+
+        device = self.input_patch_embedding.hidden_layer.weight.device
+        context = context.to(
+            device=device,
+            dtype=torch.float32,
+        )
+
+        context, pad_len = self._adjust_context_length(context, min_context, max_context)
+
+        padded_token = pad_len // self.tokenizer.patch_size
+        input_token, _ = self.tokenizer.input_transform(context)
+
+        input_mask = torch.isnan(input_token).logical_not().to(input_token.dtype)
+        input_token = torch.nan_to_num(input_token, nan=self.config.nan_mask_value)
+        input_embeds = torch.cat((input_token, input_mask), dim=2)
+
+        return input_embeds, padded_token
 
     def on_load_checkpoint(self, checkpoint: dict) -> None:
         # rename keys of state_dict, because the block_stack was moved directly into the tirex model

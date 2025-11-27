@@ -1,5 +1,5 @@
-name: General
-description: other issues not related to the above
+name: Bug Report
+description: Report a bug in Tirex
 title: "[Bug]: "
 labels: ["bug"]
 body:

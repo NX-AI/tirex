@@ -339,12 +339,14 @@ html[data-theme='dark'] .theme-doc-sidebar-menu .menu__link:not(.menu__link--sub
 
 /* Category spacing for emoji icons */
 .theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist,
-.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist {
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist,
+.theme-doc-sidebar-menu .menu__list-item.icon-examples .menu__link--sublist {
   position: relative;
-  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 2rem) !important;
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) + 1.75rem) !important;
 }
 .theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist::before,
-.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist::before {
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-examples .menu__link--sublist::before {
   position: absolute;
   left: var(--ifm-menu-link-padding-horizontal);
   top: 50%;
@@ -354,6 +356,7 @@ html[data-theme='dark'] .theme-doc-sidebar-menu .menu__link:not(.menu__link--sub
   transition: transform 0.2s ease;
 }
 .theme-doc-sidebar-menu .menu__list-item.icon-forecasting .menu__link--sublist:hover::before,
-.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist:hover::before {
+.theme-doc-sidebar-menu .menu__list-item.icon-python .menu__link--sublist:hover::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-examples .menu__link--sublist:hover::before {
   transform: translateY(-50%) scale(1.05);
 }
