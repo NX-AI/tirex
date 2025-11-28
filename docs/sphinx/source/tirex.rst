@@ -18,5 +18,9 @@ Forecasting Model interface
 Utilities
 ---------
 
+.. _module-tirex.util:
+
 .. automodule:: tirex.util
-   :members: select_quantile_subset
+   :members:
+      select_quantile_subset,
+      plot_forecast

@@ -16,6 +16,10 @@ autodoc_default_options = {}
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 autodoc_preserve_defaults = True
+autodoc_mock_imports = [
+    "sklearn",  # classification extra (train_test_split, RF, etc.)
+    "joblib",  # RandomForest serialization dependency
+]  # mock optional deps so autodoc works without installing extras
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_private_with_doc = False

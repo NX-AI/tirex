@@ -79,7 +79,7 @@ For detailed instructions on using TiRex classification model please visit our [
 
 ## TiRex Docker image
 
-For detailed instructions on building and running TiRex in a Docker container, see the [Docker README](./inference/README.md).
+For detailed instructions on building and running TiRex in a Docker container, see the [Docker README](./inference/README.md) or our [deployment documentation](https://nx-ai.github.io/tirex/deployment).
 
 ## Finetuning TiRex
 TiRex already provide state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
