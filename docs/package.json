@@ -5,6 +5,7 @@
   "scripts": {
     "generate:api": "bash scripts/generate_api_docs_sphinx.sh",
     "prebuild": "bash scripts/generate_api_docs_sphinx.sh",
+    "postinstall": "node scripts/patch-gray-matter-js-yaml.js",
     "start": "docusaurus start",
     "build": "docusaurus build",
     "serve": "docusaurus serve"
