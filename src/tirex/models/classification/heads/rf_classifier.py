@@ -1,12 +1,14 @@
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
+
 import joblib
-import numpy as np
 import torch
 from sklearn.ensemble import RandomForestClassifier
 
-from .embedding import TiRexEmbedding
+from .base_classifier import BaseTirexClassifier
 
 
-class TirexRFClassifier:
+class TirexRFClassifier(BaseTirexClassifier):
     """
     A Random Forest classifier that uses time series embeddings as features.
 
@@ -15,7 +17,6 @@ class TirexRFClassifier:
     time series, which are then used to train the Random Forest.
 
     Example:
-        >>> import numpy as np
         >>> from tirex.models.classification import TirexRFClassifier
         >>>
         >>> # Create model with custom Random Forest parameters
@@ -43,6 +44,7 @@ class TirexRFClassifier:
         self,
         data_augmentation: bool = False,
         device: str | None = None,
+        compile: bool = False,
         batch_size: int = 512,
         # Random Forest parameters
         **rf_kwargs,
@@ -51,24 +53,18 @@ class TirexRFClassifier:
 
         Args:
             data_augmentation : bool
-                Whether to use data_augmentation for embeddings (stats and first-order differences of the original data). Default: False
+                Whether to use data_augmentation for embeddings (sample statistics and first-order differences of the original data). Default: False
             device : str | None
                 Device to run the embedding model on. If None, uses CUDA if available, else CPU. Default: None
+            compile: bool
+                Whether to compile the frozen embedding model. Default: False
             batch_size : int
                 Batch size for embedding calculations. Default: 512
             **rf_kwargs
                 Additional keyword arguments to pass to sklearn's RandomForestClassifier.
                 Common options include n_estimators, max_depth, min_samples_split, random_state, etc.
         """
-
-        # Set device
-        if device is None:
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.device = device
-
-        self.emb_model = TiRexEmbedding(device=self.device, data_augmentation=data_augmentation, batch_size=batch_size)
-        self.data_augmentation = data_augmentation
-
+        super().__init__(data_augmentation=data_augmentation, device=device, compile=compile, batch_size=batch_size)
         self.head = RandomForestClassifier(**rf_kwargs)
 
     @torch.inference_mode()
@@ -80,7 +76,7 @@ class TirexRFClassifier:
 
         Args:
             train_data: Tuple of (X_train, y_train) where X_train is the input time
-                series data (torch.Tensor) and y_train is a numpy array
+                series data (torch.Tensor) and y_train is a torch.Tensor
                 of class labels.
         """
         X_train, y_train = train_data
@@ -88,35 +84,10 @@ class TirexRFClassifier:
         if isinstance(y_train, torch.Tensor):
             y_train = y_train.detach().cpu().numpy()
 
+        self.emb_model.eval()
+        X_train = X_train.to(self.device)
         embeddings = self.emb_model(X_train).cpu().numpy()
         self.head.fit(embeddings, y_train)
-
-    @torch.inference_mode()
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class labels for input time series data.
-
-        Args:
-            x: Input time series data as torch.Tensor or np.ndarray with shape
-                (batch_size, num_variates, seq_len).
-        Returns:
-            torch.Tensor: Predicted class labels with shape (batch_size,).
-        """
-
-        embeddings = self.emb_model(x).cpu().numpy()
-        return torch.from_numpy(self.head.predict(embeddings)).long()
-
-    @torch.inference_mode()
-    def predict_proba(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class probabilities for input time series data.
-
-        Args:
-            x: Input time series data as torch.Tensor or np.ndarray with shape
-                (batch_size, num_variates, seq_len).
-        Returns:
-            torch.Tensor: Class probabilities with shape (batch_size, num_classes).
-        """
-        embeddings = self.emb_model(x).cpu().numpy()
-        return torch.from_numpy(self.head.predict_proba(embeddings))
 
     def save_model(self, path: str) -> None:
         """This method saves the trained Random Forest classifier head and embedding information in joblib format
@@ -126,6 +97,8 @@ class TirexRFClassifier:
         """
         payload = {
             "data_augmentation": self.data_augmentation,
+            "compile": self._compile,
+            "batch_size": self.batch_size,
             "head": self.head,
         }
         joblib.dump(payload, path)
@@ -147,6 +120,8 @@ class TirexRFClassifier:
         # Create new instance with saved configuration
         model = cls(
             data_augmentation=checkpoint["data_augmentation"],
+            compile=checkpoint["compile"],
+            batch_size=checkpoint["batch_size"],
         )
 
         # Load the trained Random Forest head

@@ -1,8 +1,8 @@
-# classification/__init__.py
-from .linear_classifier import TirexClassifierTorch
-from .rf_classifier import TirexRFClassifier
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
-__all__ = [
-    "TirexClassifierTorch",
-    "TirexRFClassifier",
-]
+from .heads.gbm_classifier import TirexGBMClassifier
+from .heads.linear_classifier import TirexClassifierTorch
+from .heads.rf_classifier import TirexRFClassifier
+
+__all__ = ["TirexClassifierTorch", "TirexRFClassifier", "TirexGBMClassifier"]

@@ -1,12 +1,15 @@
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
+
 from dataclasses import asdict
 
 import torch
 
-from .embedding import TiRexEmbedding
-from .trainer import TrainConfig, Trainer
+from ..trainer import TrainConfig, Trainer
+from .base_classifier import BaseTirexClassifier
 
 
-class TirexClassifierTorch(torch.nn.Module):
+class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
     """
     A PyTorch classifier that combines time series embeddings with a linear classification head.
 
@@ -18,7 +21,7 @@ class TirexClassifierTorch(torch.nn.Module):
         >>> import torch
         >>> from tirex.models.classification import TirexClassifierTorch
         >>>
-        >>> # Create model with TIREX embeddings
+        >>> # Create model with TiRex embeddings
         >>> model = TirexClassifierTorch(
         ...     data_augmentation=True,
         ...     max_epochs=2,
@@ -43,8 +46,9 @@ class TirexClassifierTorch(torch.nn.Module):
         self,
         data_augmentation: bool = False,
         device: str | None = None,
+        compile: bool = False,
         # Training parameters
-        max_epochs: int = 50,
+        max_epochs: int = 10,
         lr: float = 1e-4,
         weight_decay: float = 0.01,
         batch_size: int = 512,
@@ -62,9 +66,11 @@ class TirexClassifierTorch(torch.nn.Module):
 
         Args:
             data_augmentation : bool | None
-                Whether to use data_augmentation for embeddings (stats and first-order differences of the original data). Default: False
+                Whether to use data_augmentation for embeddings (sample statistics and first-order differences of the original data). Default: False
             device : str | None
-                Device to run the model on. If None, uses CUDA if available, else CPU. Default: None
+                Device to run the embedding model on. If None, uses CUDA if available, else CPU. Default: None
+            compile: bool
+                Whether to compile the frozen embedding model. Default: False
             max_epochs : int
                 Maximum number of training epochs. Default: 50
             lr : float
@@ -91,15 +97,9 @@ class TirexClassifierTorch(torch.nn.Module):
                 Dropout probability for the classification head. If None, no dropout is used. Default: None
         """
 
-        super().__init__()
+        torch.nn.Module.__init__(self)
 
-        if device is None:
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.device = device
-
-        # Create embedding model
-        self.emb_model = TiRexEmbedding(device=self.device, data_augmentation=data_augmentation, batch_size=batch_size)
-        self.data_augmentation = data_augmentation
+        super().__init__(data_augmentation=data_augmentation, device=device, compile=compile, batch_size=batch_size)
 
         # Head parameters
         self.dropout = dropout
@@ -221,6 +221,7 @@ class TirexClassifierTorch(torch.nn.Module):
             {
                 "head_state_dict": self.head.state_dict(),  # need to save only head, embedding is frozen
                 "data_augmentation": self.data_augmentation,
+                "compile": self._compile,
                 "emb_dim": self.emb_dim,
                 "num_classes": self.num_classes,
                 "dropout": self.dropout,
@@ -248,6 +249,7 @@ class TirexClassifierTorch(torch.nn.Module):
 
         model = cls(
             data_augmentation=checkpoint["data_augmentation"],
+            compile=checkpoint["compile"],
             dropout=checkpoint["dropout"],
             max_epochs=train_config_dict.get("max_epochs", 50),
             lr=train_config_dict.get("lr", 1e-4),

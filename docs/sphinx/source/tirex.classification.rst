@@ -23,3 +23,6 @@ Classification Model interface
 
 .. autoclass:: TirexRFClassifier
    :members: fit, predict, predict_proba, save_model, load_model
+
+.. autoclass:: TirexGBMClassifier
+   :members: fit, predict, predict_proba, save_model, load_model

@@ -24,6 +24,7 @@ TiRex provides two classifier options:
 
 1. **Random Forest Classifier:** `TirexRFClassifier`
 2. **Torch Linear Classifier:** `TirexClassifierTorch`
+3. **Gradient Boosting Classifier:** `TirexGBMClassifier`
 
 We recommend starting with `data_augmentation=False`, because the embedding computation will be faster. If you want to improve classification accuracy, you can switch to `data_augmentation=True` in order to add additional information about the dataset to the embedding.
 

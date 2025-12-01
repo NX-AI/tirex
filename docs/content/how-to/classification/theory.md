@@ -54,7 +54,7 @@ TiRex’s classification process can be viewed as a sequence of transformations:
    - **Absolute sample statistics:** Restores scale information lost due to normalization.
 
 6. **Simple classifier prediction** →
-   A classification head (Random Forest or Linear Layer) is trained and then maps the final embedding to class labels.
+   A classification head (Random Forest, Linear Layer or Gradient Boosting) is trained and then maps the final embedding to class labels.
 
 ---
 

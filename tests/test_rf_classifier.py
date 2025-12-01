@@ -69,6 +69,34 @@ def test_predict_with_torch_tensors(classification_data):
     assert torch.all((predictions >= 0) & (predictions < 3))
 
 
+def test_predict_proba_with_torch_tensors(classification_data):
+    X_train, y_train, X_test, _ = classification_data
+    n_classes = 3
+
+    classifier = TirexRFClassifier(n_estimators=10)
+    classifier.fit((X_train, y_train))
+    probabilities = classifier.predict_proba(X_test)
+
+    assert isinstance(probabilities, torch.Tensor)
+    assert probabilities.shape == (len(X_test), n_classes)
+    # Check probabilities are between 0 and 1
+    assert torch.all((probabilities >= 0) & (probabilities <= 1))
+    # Check probabilities sum to approximately 1 for each sample
+    assert torch.allclose(probabilities.sum(dim=1), torch.ones(len(X_test), dtype=probabilities.dtype), atol=1e-6)
+
+
+def test_data_augmentation_true(classification_data):
+    X_train, y_train, X_test, _ = classification_data
+
+    classifier = TirexRFClassifier(data_augmentation=True, n_estimators=10)
+    classifier.fit((X_train, y_train))
+    predictions = classifier.predict(X_test)
+
+    assert isinstance(predictions, torch.Tensor)
+    assert predictions.shape == (len(X_test),)
+    assert torch.all((predictions >= 0) & (predictions < 3))
+
+
 def test_save_and_load_model(classification_data):
     X_train, y_train, X_test, _ = classification_data
 
@@ -76,6 +104,7 @@ def test_save_and_load_model(classification_data):
     classifier = TirexRFClassifier(n_estimators=10, random_state=42)
     classifier.fit((X_train, y_train))
     predictions_before = classifier.predict(X_test)
+    probabilities_before = classifier.predict_proba(X_test)
 
     # Save to temporary file
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".joblib") as f:
@@ -87,9 +116,13 @@ def test_save_and_load_model(classification_data):
         # Load model
         loaded_classifier = TirexRFClassifier.load_model(model_path)
         predictions_after = loaded_classifier.predict(X_test)
+        probabilities_after = loaded_classifier.predict_proba(X_test)
 
         # Check predictions match
         assert torch.all(predictions_before == predictions_after)
+
+        # Check probability match
+        assert torch.allclose(probabilities_before, probabilities_after, atol=1e-8)
     finally:
         # Clean up
         if os.path.exists(model_path):
@@ -114,10 +147,74 @@ def test_multivariate_data():
     classifier = TirexRFClassifier(n_estimators=10, random_state=42)
     classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
-
-    # Convert predictions to tensor if needed
-    if isinstance(predictions, np.ndarray):
-        predictions = torch.from_numpy(predictions)
+    probabilities = classifier.predict_proba(X_test)
 
     assert predictions.shape == (n_test,)
     assert torch.all((predictions >= 0) & (predictions < n_classes))
+
+    # Check probabilities
+    assert isinstance(probabilities, torch.Tensor)
+    assert probabilities.shape == (n_test, n_classes)
+    assert torch.all((probabilities >= 0) & (probabilities <= 1))
+    assert torch.allclose(probabilities.sum(dim=1), torch.ones(n_test, dtype=probabilities.dtype), atol=1e-6)
+
+
+################################### TESTS WITH COMPILE #####################################################
+def test_compile_initialization():
+    classifier = TirexRFClassifier(compile=True)
+    assert classifier._compile is True
+    assert classifier.emb_model is not None
+
+
+def test_compile_fit_and_predict(classification_data):
+    X_train, y_train, X_test, _ = classification_data
+
+    classifier = TirexRFClassifier(compile=True, n_estimators=10)
+    classifier.fit((X_train, y_train))
+    predictions = classifier.predict(X_test)
+    probabilities = classifier.predict_proba(X_test)
+
+    assert isinstance(predictions, torch.Tensor)
+    assert predictions.shape == (len(X_test),)
+    assert torch.all((predictions >= 0) & (predictions < 3))
+
+    # Check probabilities
+    assert isinstance(probabilities, torch.Tensor)
+    assert probabilities.shape == (len(X_test), 3)
+    assert torch.all((probabilities >= 0) & (probabilities <= 1))
+    assert torch.allclose(probabilities.sum(dim=1), torch.ones(len(X_test), dtype=probabilities.dtype), atol=1e-6)
+
+
+def test_save_and_load_with_compile(classification_data):
+    X_train, y_train, X_test, _ = classification_data
+
+    # Train and save model with compile=True
+    classifier = TirexRFClassifier(compile=True, n_estimators=10, random_state=42)
+    classifier.fit((X_train, y_train))
+    predictions_before = classifier.predict(X_test)
+    probabilities_before = classifier.predict_proba(X_test)
+
+    # Save to temporary file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".joblib") as f:
+        model_path = f.name
+
+    try:
+        classifier.save_model(model_path)
+
+        # Load model
+        loaded_classifier = TirexRFClassifier.load_model(model_path)
+        predictions_after = loaded_classifier.predict(X_test)
+        probabilities_after = loaded_classifier.predict_proba(X_test)
+
+        # Check predictions match
+        assert torch.all(predictions_before == predictions_after)
+
+        # Check probability match
+        assert torch.allclose(probabilities_before, probabilities_after, atol=1e-8)
+
+        # Check compile parameter is preserved
+        assert loaded_classifier._compile is True
+    finally:
+        # Clean up
+        if os.path.exists(model_path):
+            os.remove(model_path)

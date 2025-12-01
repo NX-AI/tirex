@@ -8,7 +8,10 @@ import numpy as np
 import pytest
 import torch
 
-from tirex.models.classification import TirexClassifierTorch
+from tirex.models.classification import TirexGBMClassifier
+
+# Suppress LightGBM warning about feature names
+pytestmark = pytest.mark.filterwarnings("ignore:.*does not have valid feature names.*:UserWarning")
 
 
 @pytest.fixture
@@ -31,68 +34,50 @@ def classification_data():
 
 
 def test_initialization_default():
-    classifier = TirexClassifierTorch()
+    classifier = TirexGBMClassifier()
+
     assert classifier.emb_model is not None
+    assert classifier.head is not None
 
 
-def test_initialization_with_custom_params():
-    classifier = TirexClassifierTorch(
-        max_epochs=20,
-        lr=1e-3,
-        batch_size=64,
-        dropout=0.2,
+def test_initialization_with_gbm_params():
+    classifier = TirexGBMClassifier(
+        n_estimators=30,
+        max_depth=5,
+        random_state=42,
     )
 
-    assert classifier.trainer.train_config.max_epochs == 20
-    assert classifier.trainer.train_config.lr == 1e-3
-    assert classifier.trainer.train_config.batch_size == 64
-    assert classifier.dropout == 0.2
+    assert classifier.emb_model is not None
+    assert classifier.head is not None
+    assert classifier.head.n_estimators == 30
+    assert classifier.head.max_depth == 5
+    assert classifier.head.random_state == 42
 
 
-def test_fit_basic(classification_data):
+def test_fit_with_torch_tensors(classification_data):
     X_train, y_train, _, _ = classification_data
 
-    classifier = TirexClassifierTorch(
-        max_epochs=1,
-        batch_size=32,
-        log_every_n_steps=5,
-    )
-
+    classifier = TirexGBMClassifier(n_estimators=10, verbosity=-1)
     classifier.fit((X_train, y_train))
 
-    assert classifier.head is not None
-    assert classifier.emb_dim is not None
-    assert classifier.num_classes == 3
 
+def test_predict_with_torch_tensors(classification_data):
+    X_train, y_train, X_test, _ = classification_data
 
-def test_fit_with_val_data(classification_data):
-    X_train, y_train, X_test, y_test = classification_data
-
-    classifier = TirexClassifierTorch(
-        max_epochs=1,
-        batch_size=32,
-    )
-
-    classifier.fit((X_train, y_train), val_data=(X_test, y_test))
-    assert classifier.head is not None
-
-
-def test_predict_shape(classification_data):
-    X_train, y_train, X_test, y_test = classification_data
-
-    classifier = TirexClassifierTorch(max_epochs=1, batch_size=32)
+    classifier = TirexGBMClassifier(n_estimators=10, verbosity=-1)
     classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
 
+    assert isinstance(predictions, torch.Tensor)
     assert predictions.shape == (len(X_test),)
     assert torch.all((predictions >= 0) & (predictions < 3))
 
 
-def test_predict_proba_shape(classification_data):
-    X_train, y_train, X_test, y_test = classification_data
+def test_predict_proba_with_torch_tensors(classification_data):
+    X_train, y_train, X_test, _ = classification_data
     n_classes = 3
 
-    classifier = TirexClassifierTorch(max_epochs=1, batch_size=32)
+    classifier = TirexGBMClassifier(n_estimators=10, verbosity=-1)
     classifier.fit((X_train, y_train))
     probabilities = classifier.predict_proba(X_test)
 
@@ -104,29 +89,10 @@ def test_predict_proba_shape(classification_data):
     assert torch.allclose(probabilities.sum(dim=1), torch.ones(len(X_test), dtype=probabilities.dtype), atol=1e-6)
 
 
-def test_predict_before_fit_raises_error():
-    classifier = TirexClassifierTorch()
-    X_test = torch.randn(10, 1, 128)
-
-    with pytest.raises(RuntimeError, match="Head not initialized"):
-        classifier.predict(X_test)
-
-
-def test_forward_pass(classification_data):
-    X_train, y_train, X_test, y_test = classification_data
-
-    classifier = TirexClassifierTorch(max_epochs=1, batch_size=32)
-    classifier.fit((X_train, y_train))
-    logits = classifier.forward(X_test[:5])
-
-    assert logits.shape == (5, 3)
-    assert not torch.isnan(logits).any()
-
-
 def test_data_augmentation_true(classification_data):
     X_train, y_train, X_test, _ = classification_data
 
-    classifier = TirexClassifierTorch(data_augmentation=True, max_epochs=2)
+    classifier = TirexGBMClassifier(data_augmentation=True, n_estimators=10, verbosity=-1)
     classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
 
@@ -136,47 +102,45 @@ def test_data_augmentation_true(classification_data):
 
 
 def test_save_and_load_model(classification_data):
-    X_train, y_train, X_test, y_test = classification_data
+    X_train, y_train, X_test, _ = classification_data
 
     # Train and save model
-    classifier = TirexClassifierTorch(
-        max_epochs=1,
-        batch_size=32,
-        lr=1e-3,
-        weight_decay=1e-4,
-        val_split_ratio=0.1,
-        seed=42,
-        class_weights=torch.tensor([1.0, 2.0, 3.0]),
+    early_stopping_rounds = 15
+    min_delta = 0.001
+    classifier = TirexGBMClassifier(
+        n_estimators=10, random_state=42, early_stopping_rounds=early_stopping_rounds, min_delta=min_delta, verbosity=-1
     )
     classifier.fit((X_train, y_train))
     predictions_before = classifier.predict(X_test)
     probabilities_before = classifier.predict_proba(X_test)
 
     # Save to temporary file
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".pt") as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".joblib") as f:
         model_path = f.name
 
     try:
         classifier.save_model(model_path)
 
         # Load model
-        loaded_classifier = TirexClassifierTorch.load_model(model_path)
+        loaded_classifier = TirexGBMClassifier.load_model(model_path)
         predictions_after = loaded_classifier.predict(X_test)
         probabilities_after = loaded_classifier.predict_proba(X_test)
 
         # Check predictions match
         assert torch.all(predictions_before == predictions_after)
-        assert loaded_classifier.emb_dim == classifier.emb_dim
-        assert loaded_classifier.num_classes == classifier.num_classes
-        assert loaded_classifier.dropout == classifier.dropout
-        assert loaded_classifier.trainer.train_config.max_epochs == classifier.trainer.train_config.max_epochs
-        assert loaded_classifier.trainer.train_config.lr == classifier.trainer.train_config.lr
-        assert loaded_classifier.trainer.train_config.batch_size == classifier.trainer.train_config.batch_size
-        assert loaded_classifier.trainer.train_config.val_split_ratio == classifier.trainer.train_config.val_split_ratio
-        assert loaded_classifier.trainer.train_config.stratify == classifier.trainer.train_config.stratify
 
-        # check probability match
+        # Check probabilities are valid
+        assert isinstance(probabilities_after, torch.Tensor)
+        assert probabilities_after.shape == (len(X_test), 3)
         assert torch.allclose(probabilities_before, probabilities_after, atol=1e-8)
+        assert torch.all((probabilities_after >= 0) & (probabilities_after <= 1))
+        assert torch.allclose(
+            probabilities_after.sum(dim=1), torch.ones(len(X_test), dtype=probabilities_after.dtype), atol=1e-6
+        )
+
+        # Check early stopping and min_delta are preserved
+        assert loaded_classifier.early_stopping_rounds == early_stopping_rounds
+        assert loaded_classifier.min_delta == min_delta
     finally:
         # Clean up
         if os.path.exists(model_path):
@@ -185,17 +149,20 @@ def test_save_and_load_model(classification_data):
 
 def test_multivariate_data():
     torch.manual_seed(42)
+    np.random.seed(42)
+
     n_train = 80
     n_test = 20
     n_vars = 3
     seq_len = 128
     n_classes = 2
 
-    X_train = torch.randn(n_train, n_vars, seq_len)
-    y_train = torch.randint(0, n_classes, (n_train,))
-    X_test = torch.randn(n_test, n_vars, seq_len)
+    # Create torch tensors instead of numpy arrays
+    X_train = torch.randn(n_train, n_vars, seq_len, dtype=torch.float32)
+    y_train = torch.randint(0, n_classes, (n_train,), dtype=torch.long)
+    X_test = torch.randn(n_test, n_vars, seq_len, dtype=torch.float32)
 
-    classifier = TirexClassifierTorch(max_epochs=1, batch_size=32)
+    classifier = TirexGBMClassifier(n_estimators=10, random_state=42, verbosity=-1)
     classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
     probabilities = classifier.predict_proba(X_test)
@@ -212,7 +179,7 @@ def test_multivariate_data():
 
 ################################### TESTS WITH COMPILE #####################################################
 def test_compile_initialization():
-    classifier = TirexClassifierTorch(compile=True)
+    classifier = TirexGBMClassifier(compile=True)
     assert classifier._compile is True
     assert classifier.emb_model is not None
 
@@ -220,11 +187,12 @@ def test_compile_initialization():
 def test_compile_fit_and_predict(classification_data):
     X_train, y_train, X_test, _ = classification_data
 
-    classifier = TirexClassifierTorch(compile=True, max_epochs=2, batch_size=32)
+    classifier = TirexGBMClassifier(compile=True, n_estimators=10, verbosity=-1)
     classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
     probabilities = classifier.predict_proba(X_test)
 
+    assert isinstance(predictions, torch.Tensor)
     assert predictions.shape == (len(X_test),)
     assert torch.all((predictions >= 0) & (predictions < 3))
 
@@ -236,24 +204,23 @@ def test_compile_fit_and_predict(classification_data):
 
 
 def test_save_and_load_with_compile(classification_data):
-    """Test that compile parameter is saved and loaded correctly."""
     X_train, y_train, X_test, _ = classification_data
 
     # Train and save model with compile=True
-    classifier = TirexClassifierTorch(compile=True, max_epochs=1, batch_size=32)
+    classifier = TirexGBMClassifier(compile=True, n_estimators=10, random_state=42, verbosity=-1)
     classifier.fit((X_train, y_train))
     predictions_before = classifier.predict(X_test)
     probabilities_before = classifier.predict_proba(X_test)
 
     # Save to temporary file
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".pt") as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".joblib") as f:
         model_path = f.name
 
     try:
         classifier.save_model(model_path)
 
         # Load model
-        loaded_classifier = TirexClassifierTorch.load_model(model_path)
+        loaded_classifier = TirexGBMClassifier.load_model(model_path)
         predictions_after = loaded_classifier.predict(X_test)
         probabilities_after = loaded_classifier.predict_proba(X_test)
 

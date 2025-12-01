@@ -1,6 +1,6 @@
-import inspect
+# Copyright (c) NXAI GmbH.
+# This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +11,9 @@ from .utils import nanmax, nanmin, nanstd
 
 
 class TiRexEmbedding(nn.Module):
-    def __init__(self, device: str | None = None, data_augmentation: bool = False, batch_size: int = 512) -> None:
+    def __init__(
+        self, device: str | None = None, data_augmentation: bool = False, batch_size: int = 512, compile: bool = False
+    ) -> None:
         super().__init__()
         self.data_augmentation = data_augmentation
         self.number_of_patches = 8
@@ -20,8 +22,9 @@ class TiRexEmbedding(nn.Module):
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = device
+        self._compile = compile
 
-        self.model = load_model(path="NX-AI/TiRex", device=self.device)
+        self.model = load_model(path="NX-AI/TiRex", device=self.device, compile=self._compile)
 
     def _gen_emb_batched(self, data: torch.Tensor) -> torch.Tensor:
         batches = list(torch.split(data, self.batch_size))
