@@ -20,7 +20,7 @@ jobs:
       - name: Install inference dependencies
         working-directory: ./inference
         run: |
-            pip install -r requirements.txt -r requirements-dev.txt
+            pip install -r requirements.txt -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Run inference tests
         working-directory: ./inference

@@ -20,5 +20,5 @@ jobs:
           python-version: "3.11"
           # cache: 'pip' # Caching didn't make the CI faster and cache is quite big (4GB)
 
-      - run: pip install -e ".[test,gluonts,hfdataset]"
+      - run: pip install -e ".[test,gluonts,hfdataset]" --extra-index-url https://download.pytorch.org/whl/cpu
       - run: pytest tests/test_chronos_zs.py

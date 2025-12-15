@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 # Ensure package + doc deps present (idempotent)
-python -m pip install -e .
+python -m pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu
 python -m pip install \
   sphinx sphinx-markdown-builder sphinx-autobuild myst-parser sphinxcontrib-mermaid \
   sphinx-autodoc-typehints sphinx-copybutton sphinx-design
