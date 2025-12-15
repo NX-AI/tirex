@@ -14,6 +14,7 @@ const sidebars = {
     { type: 'html', value: 'GETTING STARTED', className: 'sidebarHeading' },
     { type: 'doc', id: 'getting-started/install', className: 'icon-install' },
     { type: 'doc', id: 'getting-started/quickstart', className: 'icon-quickstart' },
+    { type: 'doc', id: 'getting-started/faqs', className: 'icon-faqs' },
 
     // HOW-TO GUIDES
     { type: 'html', value: 'HOW-TO GUIDES', className: 'sidebarHeading' },

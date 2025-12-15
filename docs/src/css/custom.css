@@ -300,6 +300,8 @@ html[data-theme='dark'] .theme-doc-sidebar-menu .menu__link:not(.menu__link--sub
 .theme-doc-sidebar-menu .menu__list-item.icon-install .menu__link--sublist::before { content: '⬇️' !important; }
 .theme-doc-sidebar-menu .menu__list-item.icon-quickstart > .menu__link::before,
 .theme-doc-sidebar-menu .menu__list-item.icon-quickstart .menu__link--sublist::before { content: '🚀' !important; }
+.theme-doc-sidebar-menu .menu__list-item.icon-faqs > .menu__link::before,
+.theme-doc-sidebar-menu .menu__list-item.icon-faqs .menu__link--sublist::before { content: '❓' !important; }
 .theme-doc-sidebar-menu .menu__list-item.icon-eval > .menu__link::before,
 .theme-doc-sidebar-menu .menu__list-item.icon-eval .menu__link--sublist::before { content: '📊' !important; }
 .theme-doc-sidebar-menu .menu__list-item.icon-dataset > .menu__link::before,
