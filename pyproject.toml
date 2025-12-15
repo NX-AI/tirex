@@ -13,11 +13,12 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-keywords = ["TiRex", "xLSTM", "Time Series", "Zero-shot", "Deep Learning", "Classification", "Timeseries-Classification"]
+keywords = ["TiRex", "xLSTM", "Timeseries", "Zero-shot", "Deep Learning", "Timeseries-Forecasting" ,"Timeseries-Classification", "Timeseries-Regression"]
 dependencies = [
     "torch",
     "huggingface-hub",
     "numpy",
+    "scikit-learn"
 ]
 
 [project.urls]
@@ -33,8 +34,9 @@ notebooks = ["ipykernel", "matplotlib", "pandas", "python-dotenv"]
 plotting = ["matplotlib"]
 gluonts = ["gluonts", "pandas"]
 hfdataset = ["datasets"]
-test = ["fev>=0.6.0", "pytest"]
-classification = ["scikit-learn","lightgbm[scikit-learn]"]
+test = ["fev>=0.6.0", "pytest", "aeon"]
+classification = ["lightgbm[scikit-learn]"]
+regression = ["lightgbm[scikit-learn]"]
 all = [
     "xlstm",
     "ninja",

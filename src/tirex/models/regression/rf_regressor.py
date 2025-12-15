@@ -3,24 +3,25 @@
 
 import joblib
 import torch
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 
-from .base_classifier import BaseTirexClassifier
+from ..base.base_regressor import BaseTirexRegressor
 
 
-class TirexRFClassifier(BaseTirexClassifier):
+class TirexRFRegressor(BaseTirexRegressor):
     """
-    A Random Forest classifier that uses time series embeddings as features.
+    A Random Forest regressor that uses time series embeddings as features.
 
-    This classifier combines a pre-trained embedding model for feature extraction with a scikit-learn
-    Random Forest classifier. The embedding model generates fixed-size feature vectors from variable-length
+    This regressor combines a pre-trained embedding model for feature extraction with a scikit-learn
+    Random Forest regressor. The embedding model generates fixed-size feature vectors from variable-length
     time series, which are then used to train the Random Forest.
 
     Example:
-        >>> from tirex.models.classification import TirexRFClassifier
+        >>> import torch
+        >>> from tirex.models.regression import TirexRFRegressor
         >>>
         >>> # Create model with custom Random Forest parameters
-        >>> model = TirexRFClassifier(
+        >>> model = TirexRFRegressor(
         ...     data_augmentation=True,
         ...     n_estimators=50,
         ...     max_depth=10,
@@ -29,7 +30,7 @@ class TirexRFClassifier(BaseTirexClassifier):
         >>>
         >>> # Prepare data (can use NumPy arrays or PyTorch tensors)
         >>> X_train = torch.randn(100, 1, 128)  # 100 samples, 1 number of variates, 128 sequence length
-        >>> y_train = torch.randint(0, 3, (100,))  # 3 classes
+        >>> y_train = torch.randn(100,)  # target values
         >>>
         >>> # Train the model
         >>> model.fit((X_train, y_train))
@@ -37,7 +38,6 @@ class TirexRFClassifier(BaseTirexClassifier):
         >>> # Make predictions
         >>> X_test = torch.randn(20, 1, 128)
         >>> predictions = model.predict(X_test)
-        >>> probabilities = model.predict_proba(X_test)
     """
 
     def __init__(
@@ -49,7 +49,7 @@ class TirexRFClassifier(BaseTirexClassifier):
         # Random Forest parameters
         **rf_kwargs,
     ) -> None:
-        """Initializes Embedding Based Random Forest Classification model.
+        """Initializes Embedding Based Random Forest Regression model.
 
         Args:
             data_augmentation : bool
@@ -61,15 +61,15 @@ class TirexRFClassifier(BaseTirexClassifier):
             batch_size : int
                 Batch size for embedding calculations. Default: 512
             **rf_kwargs
-                Additional keyword arguments to pass to sklearn's RandomForestClassifier.
+                Additional keyword arguments to pass to sklearn's RandomForestRegressor.
                 Common options include n_estimators, max_depth, min_samples_split, random_state, etc.
         """
         super().__init__(data_augmentation=data_augmentation, device=device, compile=compile, batch_size=batch_size)
-        self.head = RandomForestClassifier(**rf_kwargs)
+        self.head = RandomForestRegressor(**rf_kwargs)
 
     @torch.inference_mode()
     def fit(self, train_data: tuple[torch.Tensor, torch.Tensor]) -> None:
-        """Train the Random Forest classifier on embedded time series data.
+        """Train the Random Forest regressor on embedded time series data.
 
         This method generates embeddings for the training data using the embedding
         model, then trains the Random Forest on these embeddings.
@@ -77,20 +77,20 @@ class TirexRFClassifier(BaseTirexClassifier):
         Args:
             train_data: Tuple of (X_train, y_train) where X_train is the input time
                 series data (torch.Tensor) and y_train is a torch.Tensor
-                of class labels.
+                of target values.
         """
         X_train, y_train = train_data
 
         if isinstance(y_train, torch.Tensor):
             y_train = y_train.detach().cpu().numpy()
 
-        self.emb_model.eval()
         X_train = X_train.to(self.device)
-        embeddings = self.emb_model(X_train).cpu().numpy()
+        embeddings = self._compute_embeddings(X_train)
+
         self.head.fit(embeddings, y_train)
 
     def save_model(self, path: str) -> None:
-        """This method saves the trained Random Forest classifier head and embedding information in joblib format
+        """This method saves the trained Random Forest regressor head and embedding information in joblib format
 
         Args:
             path: File path where the model should be saved (e.g., 'model.joblib').
@@ -104,16 +104,16 @@ class TirexRFClassifier(BaseTirexClassifier):
         joblib.dump(payload, path)
 
     @classmethod
-    def load_model(cls, path: str) -> "TirexRFClassifier":
+    def load_model(cls, path: str) -> "TirexRFRegressor":
         """Load a saved model from file.
 
         This reconstructs the model with the embedding configuration and loads
-        the trained Random Forest classifier from a checkpoint file created by save_model().
+        the trained Random Forest regressor from a checkpoint file created by save_model().
 
         Args:
             path: File path to the saved model checkpoint.
         Returns:
-            TirexRFClassifier: The loaded model with trained Random Forest, ready for inference.
+            TirexRFRegressor: The loaded model with trained Random Forest regressor, ready for inference.
         """
         checkpoint = joblib.load(path)
 

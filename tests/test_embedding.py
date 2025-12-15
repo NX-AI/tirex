@@ -1,15 +1,13 @@
 # Copyright (c) NXAI GmbH.
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
-import random
 from pathlib import Path
 
-import numpy as np
 import pytest
 import torch
 
 from tirex import load_model
-from tirex.models.classification.embedding import TiRexEmbedding
+from tirex.models.embedding import TiRexEmbedding
 
 
 def load_tensor_from_pt_file(path):

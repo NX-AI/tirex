@@ -3,15 +3,18 @@
 
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
+
+from tirex.util import train_val_split
 
 from ..embedding import TiRexEmbedding
 
 
-class BaseTirexClassifier(ABC):
-    """Abstract base class for TiRex classification models.
+class BaseTirexEmbeddingModel(ABC):
+    """Abstract base class for TiRex models.
 
-    This base class provides common functionality for all TiRex classifiers,
+    This base class provides common functionality for all TiRex classifier and regression models,
     including embedding model initialization and a consistent interface.
 
     """
@@ -19,7 +22,10 @@ class BaseTirexClassifier(ABC):
     def __init__(
         self, data_augmentation: bool = False, device: str | None = None, compile: bool = False, batch_size: int = 512
     ) -> None:
-        """Initializes a TiRex classification model.
+        """Initializes a base TiRex model.
+
+        This base class initializes the embedding model and common configuration
+        used by both classification and regression models.
 
         Args:
             data_augmentation : bool
@@ -49,45 +55,55 @@ class BaseTirexClassifier(ABC):
 
     @abstractmethod
     def fit(self, train_data: tuple[torch.Tensor, torch.Tensor]) -> None:
+        """Abstract method for model training"""
         pass
 
-    @torch.inference_mode()
-    def predict(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class labels for input time series data.
+    def _compute_embeddings(self, x: torch.Tensor) -> np.ndarray:
+        """Compute embeddings for input time series data.
 
         Args:
             x: Input time series data as torch.Tensor with shape
                 (batch_size, num_variates, seq_len).
+
         Returns:
-            torch.Tensor: Predicted class labels with shape (batch_size,).
+            np.ndarray: Embeddings with shape (batch_size, embedding_dim).
         """
         self.emb_model.eval()
         x = x.to(self.device)
-        embeddings = self.emb_model(x).cpu().numpy()
-        return torch.from_numpy(self.head.predict(embeddings)).long()
+        return self.emb_model(x).cpu().numpy()
 
-    @torch.inference_mode()
-    def predict_proba(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class probabilities for input time series data.
-
-        Args:
-            x: Input time series data as torch.Tensor with shape
-                (batch_size, num_variates, seq_len).
-        Returns:
-            torch.Tensor: Class probabilities with shape (batch_size, num_classes).
-        """
-        self.emb_model.eval()
-        x = x.to(self.device)
-        embeddings = self.emb_model(x).cpu().numpy()
-        return torch.from_numpy(self.head.predict_proba(embeddings))
+    def _create_train_val_datasets(
+        self,
+        train_data: tuple[torch.Tensor, torch.Tensor],
+        val_data: tuple[torch.Tensor, torch.Tensor] | None = None,
+        val_split_ratio: float = 0.2,
+        stratify: bool = False,
+        seed: int | None = None,
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
+        if val_data is None:
+            train_data, val_data = train_val_split(
+                train_data=train_data, val_split_ratio=val_split_ratio, stratify=stratify, seed=seed
+            )
+        return train_data, val_data
 
     @abstractmethod
     def save_model(self, path: str) -> None:
-        """Saving model abstract method"""
+        """Save model to file.
+
+        Args:
+            path: File path where the model should be saved.
+        """
         pass
 
     @classmethod
     @abstractmethod
     def load_model(cls, path: str):
-        """Loading model abstract method"""
+        """Load model from file.
+
+        Args:
+            path: File path to the saved model checkpoint.
+
+        Returns:
+            Instance of the model class with loaded weights and configuration.
+        """
         pass

@@ -7,3 +7,4 @@ TiRex Python API
 
    tirex
    tirex.classification
+   tirex.regression

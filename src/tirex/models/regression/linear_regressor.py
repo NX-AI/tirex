@@ -5,24 +5,24 @@ from dataclasses import asdict
 
 import torch
 
-from ..trainer import TrainConfig, Trainer
-from .base_classifier import BaseTirexClassifier
+from ..base.base_regressor import BaseTirexRegressor
+from ..trainer import TrainConfig, Trainer, TrainingMetrics
 
 
-class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
+class TirexLinearRegressor(BaseTirexRegressor, torch.nn.Module):
     """
-    A PyTorch classifier that combines time series embeddings with a linear classification head.
+    A PyTorch regressor that combines time series embeddings with a linear regression head.
 
     This model uses a pre-trained TiRex embedding model to generate feature representations from time series
-    data, followed by a linear layer (with optional dropout) for classification. The embedding backbone
-    is frozen during training, and only the classification head is trained.
+    data, followed by a linear layer (with optional dropout) for regression. The embedding backbone
+    is frozen during training, and only the regression head is trained.
 
     Example:
         >>> import torch
-        >>> from tirex.models.classification import TirexClassifierTorch
+        >>> from tirex.models.regression import TirexLinearRegressor
         >>>
         >>> # Create model with TiRex embeddings
-        >>> model = TirexClassifierTorch(
+        >>> model = TirexLinearRegressor(
         ...     data_augmentation=True,
         ...     max_epochs=2,
         ...     lr=1e-4,
@@ -31,7 +31,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         >>>
         >>> # Prepare data
         >>> X_train = torch.randn(100, 1, 128)  # 100 samples, 1 number of variates, 128 sequence length
-        >>> y_train = torch.randint(0, 3, (100,))  # 3 classes
+        >>> y_train = torch.randn(100, 1)  # target values
         >>>
         >>> # Train the model
         >>> metrics = model.fit((X_train, y_train)) # doctest: +ELLIPSIS
@@ -39,7 +39,6 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         >>> # Make predictions
         >>> X_test = torch.randn(20, 1, 128)
         >>> predictions = model.predict(X_test)
-        >>> probabilities = model.predict_proba(X_test)
     """
 
     def __init__(
@@ -53,16 +52,14 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         weight_decay: float = 0.01,
         batch_size: int = 512,
         val_split_ratio: float = 0.2,
-        stratify: bool = True,
         patience: int = 7,
         delta: float = 0.001,
         log_every_n_steps: int = 5,
         seed: int | None = None,
-        class_weights: torch.Tensor | None = None,
         # Head parameters
         dropout: float | None = None,
     ) -> None:
-        """Initializes Embedding Based Linear Classification model.
+        """Initializes Embedding Based Linear Regression model.
 
         Args:
             data_augmentation : bool | None
@@ -72,7 +69,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
             compile: bool
                 Whether to compile the frozen embedding model. Default: False
             max_epochs : int
-                Maximum number of training epochs. Default: 50
+                Maximum number of training epochs. Default: 10
             lr : float
                 Learning rate for the optimizer. Default: 1e-4
             weight_decay : float
@@ -81,8 +78,6 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
                 Batch size for training and embedding calculations. Default: 512
             val_split_ratio : float
                 Proportion of training data to use for validation, if validation data are not provided. Default: 0.2
-            stratify : bool
-                Whether to stratify the train/validation split by class labels. Default: True
             patience : int
                 Number of epochs to wait for improvement before early stopping. Default: 7
             delta : float
@@ -91,10 +86,8 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
                 Frequency of logging during training. Default: 5
             seed : int | None
                 Random seed for reproducibility. If None, no seed is set. Default: None
-            class_weights: torch.Tensor | None
-                Weight classes according to given values, has to be a Tensor of size number of categories. Default: None
             dropout : float | None
-                Dropout probability for the classification head. If None, no dropout is used. Default: None
+                Dropout probability for the regression head. If None, no dropout is used. Default: None
         """
 
         torch.nn.Module.__init__(self)
@@ -105,7 +98,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         self.dropout = dropout
         self.head = None
         self.emb_dim = None
-        self.num_classes = None
+        self.output_dim = None
 
         # Train config
         train_config = TrainConfig(
@@ -114,38 +107,36 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
             device=self.device,
             lr=lr,
             weight_decay=weight_decay,
-            class_weights=class_weights,
+            class_weights=None,
+            task_type="regression",
             batch_size=batch_size,
             val_split_ratio=val_split_ratio,
-            stratify=stratify,
             patience=patience,
             delta=delta,
             seed=seed,
         )
         self.trainer = Trainer(self, train_config=train_config)
 
-    def _init_classifier(self, emb_dim: int, num_classes: int, dropout: float | None) -> torch.nn.Module:
+    def _init_regressor(self, emb_dim: int, output_dim: int, dropout: float | None) -> torch.nn.Module:
         if dropout:
-            return torch.nn.Sequential(torch.nn.Dropout(p=dropout), torch.nn.Linear(emb_dim, num_classes))
+            return torch.nn.Sequential(torch.nn.Dropout(p=dropout), torch.nn.Linear(emb_dim, output_dim))
         else:
-            return torch.nn.Linear(emb_dim, num_classes)
+            return torch.nn.Linear(emb_dim, output_dim)
 
     @torch.inference_mode()
     def _identify_head_dims(self, x: torch.Tensor, y: torch.Tensor) -> None:
-        self.emb_model.eval()
-        sample_emb = self.emb_model(x[:1])
-        self.emb_dim = sample_emb.shape[-1]
-        self.num_classes = len(torch.unique(y))
+        self.emb_dim = self._compute_embeddings(x[:1]).shape[-1]
+        self.output_dim = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the embedding model and classification head.
+        """Forward pass through the embedding model and regression head.
 
         Args:
             x: Input tensor of time series data with shape (batch_size, num_variates, seq_len).
         Returns:
-            torch.Tensor: Logits for each class with shape (batch_size, num_classes).
+            torch.Tensor: Predicted values with shape (batch_size, 1).
         Raises:
-            RuntimeError: If the classification head has not been initialized via fit().
+            RuntimeError: If the regression head has not been initialized via fit().
         """
         if self.head is None:
             raise RuntimeError("Head not initialized. Call fit() first to automatically build the head.")
@@ -155,15 +146,15 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
 
     def fit(
         self, train_data: tuple[torch.Tensor, torch.Tensor], val_data: tuple[torch.Tensor, torch.Tensor] | None = None
-    ) -> dict[str, float]:
-        """Train the classification head on the provided data.
+    ) -> TrainingMetrics:
+        """Train the regression head on the provided data.
 
-        This method initializes the classification head based on the data dimensions,
+        This method initializes the regression head based on the data dimensions,
         then trains it on provided data. The embedding model remains frozen.
 
         Args:
             train_data: Tuple of (X_train, y_train) where X_train is the input time series
-                data and y_train are the corresponding class labels.
+                data and y_train are the corresponding target values.
             val_data: Optional tuple of (X_val, y_val) for validation. If None and
                 val_split_ratio > 0, validation data will be split from train_data.
 
@@ -173,43 +164,28 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         X_train, y_train = train_data
 
         self._identify_head_dims(X_train, y_train)
-        self.head = self._init_classifier(self.emb_dim, self.num_classes, self.dropout)
+        self.head = self._init_regressor(self.emb_dim, self.output_dim, self.dropout)
         self.head = self.head.to(self.trainer.device)
 
         return self.trainer.fit(train_data, val_data=val_data)
 
     @torch.inference_mode()
     def predict(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class labels for input time series data.
+        """Predict values for input time series data.
 
         Args:
             x: Input tensor of time series data with shape (batch_size, num_variates, seq_len).
         Returns:
-            torch.Tensor: Predicted class labels with shape (batch_size,).
+            torch.Tensor: Predicted values with shape (batch_size, 1).
         """
         self.eval()
         x = x.to(self.device)
-        logits = self.forward(x)
-        return torch.argmax(logits, dim=1)
-
-    @torch.inference_mode()
-    def predict_proba(self, x: torch.Tensor) -> torch.Tensor:
-        """Predict class probabilities for input time series data.
-
-        Args:
-            x: Input tensor of time series data with shape (batch_size, num_variates, seq_len).
-        Returns:
-            torch.Tensor: Class probabilities with shape (batch_size, num_classes).
-        """
-        self.eval()
-        x = x.to(self.device)
-        logits = self.forward(x)
-        return torch.softmax(logits, dim=1)
+        return self.forward(x)
 
     def save_model(self, path: str) -> None:
-        """Save the trained classification head.
+        """Save the trained regression head.
 
-        This function saves the trained classification head weights (.pt format), embedding configuration,
+        This function saves the trained regression head weights (.pt format), embedding configuration,
         model dimensions, and device information. The embedding model itself is not
         saved as it uses a pre-trained backbone that can be reloaded.
 
@@ -223,7 +199,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
                 "data_augmentation": self.data_augmentation,
                 "compile": self._compile,
                 "emb_dim": self.emb_dim,
-                "num_classes": self.num_classes,
+                "output_dim": self.output_dim,
                 "dropout": self.dropout,
                 "train_config": train_config_dict,
             },
@@ -231,7 +207,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         )
 
     @classmethod
-    def load_model(cls, path: str) -> "TirexClassifierTorch":
+    def load_model(cls, path: str) -> "TirexLinearRegressor":
         """Load a saved model from file.
 
         This reconstructs the model architecture and loads the trained weights from
@@ -240,7 +216,7 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
         Args:
             path: File path to the saved model checkpoint.
         Returns:
-            TirexClassifierTorch: The loaded model with trained weights, ready for inference.
+            TirexLinearRegressor: The loaded model with trained weights, ready for inference.
         """
         checkpoint = torch.load(path)
 
@@ -256,18 +232,16 @@ class TirexClassifierTorch(BaseTirexClassifier, torch.nn.Module):
             weight_decay=train_config_dict.get("weight_decay", 0.01),
             batch_size=train_config_dict.get("batch_size", 512),
             val_split_ratio=train_config_dict.get("val_split_ratio", 0.2),
-            stratify=train_config_dict.get("stratify", True),
             patience=train_config_dict.get("patience", 7),
             delta=train_config_dict.get("delta", 0.001),
             log_every_n_steps=train_config_dict.get("log_every_n_steps", 5),
             seed=train_config_dict.get("seed", None),
-            class_weights=train_config_dict.get("class_weights", None),
         )
 
         # Initialize head with dimensions
         model.emb_dim = checkpoint["emb_dim"]
-        model.num_classes = checkpoint["num_classes"]
-        model.head = model._init_classifier(model.emb_dim, model.num_classes, model.dropout)
+        model.output_dim = checkpoint.get("output_dim", checkpoint.get("num_classes", 1))  # Backward compatibility
+        model.head = model._init_regressor(model.emb_dim, model.output_dim, model.dropout)
 
         # Load the trained weights
         model.head.load_state_dict(checkpoint["head_state_dict"])

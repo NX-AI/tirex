@@ -45,6 +45,18 @@ const sidebars = {
         { type: 'doc', id: 'how-to/classification/practice', className: 'icon-practice' },
       ],
     },
+    {
+      type: 'category',
+      label: 'Regression',
+      className: 'icon-examples',
+      link: { type: 'doc', id: 'how-to/regression/index' },
+      collapsible: true,
+      collapsed: true,
+      items: [
+        { type: 'doc', id: 'how-to/regression/workflow', className: 'icon-docs' },
+        { type: 'doc', id: 'how-to/regression/practice', className: 'icon-practice' },
+      ],
+    },
     { type: 'doc', id: 'how-to/evaluation', className: 'icon-metrics' },
 
 

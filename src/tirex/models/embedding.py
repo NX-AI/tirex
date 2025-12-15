@@ -6,8 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from tirex import load_model
-
-from .utils import nanmax, nanmin, nanstd
+from tirex.util import nanmax, nanmin, nanstd
 
 
 class TiRexEmbedding(nn.Module):
@@ -20,7 +19,7 @@ class TiRexEmbedding(nn.Module):
         self.batch_size = batch_size
 
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.device = device
         self._compile = compile
 

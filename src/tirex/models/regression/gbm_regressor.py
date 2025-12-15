@@ -3,24 +3,24 @@
 
 import joblib
 import torch
-from lightgbm import LGBMClassifier, early_stopping
+from lightgbm import LGBMRegressor, early_stopping
 
-from ..utils import train_val_split
-from .base_classifier import BaseTirexClassifier
+from ..base.base_regressor import BaseTirexRegressor
 
 
-class TirexGBMClassifier(BaseTirexClassifier):
+class TirexGBMRegressor(BaseTirexRegressor):
     """
-    A Gradient Boosting classifier that uses time series embeddings as features.
+    A Gradient Boosting regressor that uses time series embeddings as features.
 
-    This classifier combines a pre-trained embedding model for feature extraction with a
-    Gradient Boosting classifier.
+    This regressor combines a pre-trained embedding model for feature extraction with a
+    Gradient Boosting regressor.
 
     Example:
-        >>> from tirex.models.classification import TirexGBMClassifier
+        >>> import torch
+        >>> from tirex.models.regression import TirexGBMRegressor
         >>>
         >>> # Create model with custom LightGBM parameters
-        >>> model = TirexGBMClassifier(
+        >>> model = TirexGBMRegressor(
         ...     data_augmentation=True,
         ...     n_estimators=50,
         ...     random_state=42
@@ -28,7 +28,7 @@ class TirexGBMClassifier(BaseTirexClassifier):
         >>>
         >>> # Prepare data (can use NumPy arrays or PyTorch tensors)
         >>> X_train = torch.randn(100, 1, 128)  # 100 samples, 1 number of variates, 128 sequence length
-        >>> y_train = torch.randint(0, 3, (100,))  # 3 classes
+        >>> y_train = torch.randn(100,)  # target values
         >>>
         >>> # Train the model
         >>> model.fit((X_train, y_train))
@@ -36,7 +36,6 @@ class TirexGBMClassifier(BaseTirexClassifier):
         >>> # Make predictions
         >>> X_test = torch.randn(20, 1, 128)
         >>> predictions = model.predict(X_test)
-        >>> probabilities = model.predict_proba(X_test)
     """
 
     def __init__(
@@ -48,11 +47,10 @@ class TirexGBMClassifier(BaseTirexClassifier):
         early_stopping_rounds: int | None = 10,
         min_delta: float = 0.0,
         val_split_ratio: float = 0.2,
-        stratify: bool = True,
         # LightGBM kwargs
         **lgbm_kwargs,
     ) -> None:
-        """Initializes Embedding Based Gradient Boosting Classification model.
+        """Initializes Embedding Based Gradient Boosting Regression model.
 
         Args:
             data_augmentation : bool
@@ -69,10 +67,8 @@ class TirexGBMClassifier(BaseTirexClassifier):
                 Minimum improvement in score to keep training. Default 0.0
             val_split_ratio : float
                 Proportion of training data to use for validation, if validation data are not provided. Default: 0.2
-            stratify : bool
-                Whether to stratify the train/validation split by class labels. Default: True
             **lgbm_kwargs
-                Additional keyword arguments to pass to LightGBM's LGBMClassifier.
+                Additional keyword arguments to pass to LightGBM's LGBMRegressor.
                 Common options include n_estimators, max_depth, learning_rate, random_state, etc.
         """
         super().__init__(data_augmentation=data_augmentation, device=device, compile=compile, batch_size=batch_size)
@@ -83,12 +79,11 @@ class TirexGBMClassifier(BaseTirexClassifier):
 
         # Data split parameters:
         self.val_split_ratio = val_split_ratio
-        self.stratify = stratify
 
         # Extract random_state for train_val_split if provided
         self.random_state = lgbm_kwargs.get("random_state", None)
 
-        self.head = LGBMClassifier(**lgbm_kwargs)
+        self.head = LGBMRegressor(**lgbm_kwargs)
 
     @torch.inference_mode()
     def fit(
@@ -96,33 +91,32 @@ class TirexGBMClassifier(BaseTirexClassifier):
         train_data: tuple[torch.Tensor, torch.Tensor],
         val_data: tuple[torch.Tensor, torch.Tensor] | None = None,
     ) -> None:
-        """Train the LightGBM classifier on embedded time series data.
+        """Train the LightGBM regressor on embedded time series data.
 
         This method generates embeddings for the training data using the embedding
-        model, then trains the LightGBM classifier on these embeddings.
+        model, then trains the LightGBM regressor on these embeddings.
 
         Args:
             train_data: Tuple of (X_train, y_train) where X_train is the input time
                 series data (torch.Tensor) and y_train is a torch.Tensor
-                of class labels.
-            val_data: Optional tuple of (X_val, y_val) for validation where X_train is the input time
-                series data (torch.Tensor) and y_train is a torch.Tensor
-                of class labels. If None, validation data will be automatically split from train_data (20% split).
+                of target values.
+            val_data: Optional tuple of (X_val, y_val) for validation where X_val is the input time
+                series data (torch.Tensor) and y_val is a torch.Tensor
+                of target values. If None, validation data will be automatically split from train_data (20% split).
         """
 
         (X_train, y_train), (X_val, y_val) = self._create_train_val_datasets(
             train_data=train_data,
             val_data=val_data,
             val_split_ratio=self.val_split_ratio,
-            stratify=self.stratify,
             seed=self.random_state,
         )
 
-        self.emb_model.eval()
         X_train = X_train.to(self.device)
         X_val = X_val.to(self.device)
-        embeddings_train = self.emb_model(X_train).cpu().numpy()
-        embeddings_val = self.emb_model(X_val).cpu().numpy()
+
+        embeddings_train = self._compute_embeddings(X_train)
+        embeddings_val = self._compute_embeddings(X_val)
 
         y_train = y_train.detach().cpu().numpy() if isinstance(y_train, torch.Tensor) else y_train
         y_val = y_val.detach().cpu().numpy() if isinstance(y_val, torch.Tensor) else y_val
@@ -137,7 +131,7 @@ class TirexGBMClassifier(BaseTirexClassifier):
         )
 
     def save_model(self, path: str) -> None:
-        """This method saves the trained LightGBM classifier head (joblib format) and embedding information.
+        """This method saves the trained LightGBM regressor head (joblib format) and embedding information.
 
         Args:
             path: File path where the model should be saved (e.g., 'model.joblib').
@@ -150,22 +144,21 @@ class TirexGBMClassifier(BaseTirexClassifier):
             "early_stopping_rounds": self.early_stopping_rounds,
             "min_delta": self.min_delta,
             "val_split_ratio": self.val_split_ratio,
-            "stratify": self.stratify,
             "head": self.head,
         }
         joblib.dump(payload, path)
 
     @classmethod
-    def load_model(cls, path: str) -> "TirexGBMClassifier":
+    def load_model(cls, path: str) -> "TirexGBMRegressor":
         """Load a saved model from file.
 
         This reconstructs the model with the embedding configuration and loads
-        the trained LightGBM classifier from a checkpoint file created by save_model().
+        the trained LightGBM regressor from a checkpoint file created by save_model().
 
         Args:
             path: File path to the saved model checkpoint.
         Returns:
-            TirexGBMClassifier: The loaded model with trained Gradient Boosting, ready for inference.
+            TirexGBMRegressor: The loaded model with trained Gradient Boosting regressor, ready for inference.
         """
         checkpoint = joblib.load(path)
 
@@ -177,7 +170,6 @@ class TirexGBMClassifier(BaseTirexClassifier):
             early_stopping_rounds=checkpoint["early_stopping_rounds"],
             min_delta=checkpoint["min_delta"],
             val_split_ratio=checkpoint["val_split_ratio"],
-            stratify=checkpoint["stratify"],
         )
 
         # Load the trained LightGBM head
@@ -187,24 +179,3 @@ class TirexGBMClassifier(BaseTirexClassifier):
         model.random_state = getattr(model.head, "random_state", None)
 
         return model
-
-    def _create_train_val_datasets(
-        self,
-        train_data: tuple[torch.Tensor, torch.Tensor],
-        val_data: tuple[torch.Tensor, torch.Tensor] | None = None,
-        val_split_ratio: float = 0.2,
-        stratify: bool = True,
-        seed: int | None = None,
-    ) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
-        X_train, y_train = train_data
-
-        if val_data is None:
-            train_data, val_data = train_val_split(
-                train_data=train_data, val_split_ratio=val_split_ratio, stratify=stratify, seed=seed
-            )
-            X_train, y_train = train_data
-            X_val, y_val = val_data
-        else:
-            X_val, y_val = val_data
-
-        return (X_train, y_train), (X_val, y_val)

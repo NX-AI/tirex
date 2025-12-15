@@ -33,14 +33,40 @@ for md_path in root.glob("*.md"):
     # Add stable heading anchors for Docusaurus (needed for intra-page links)
     if md_path.name == "tirex.classification.md":
         text = re.sub(
-            r"^(### \*class\* tirex\.models\.classification\.TirexClassifierTorch[^\n]*)(\n)",
-            r"\1 {#tirex.models.classification.TirexClassifierTorch}\2",
+            r"^(### \*class\* tirex\.models\.classification\.TirexLinearClassifier[^\n]*)(\n)",
+            r"\1 {#tirex.models.classification.TirexLinearClassifier}\2",
             text,
             flags=re.M,
         )
         text = re.sub(
             r"^(### \*class\* tirex\.models\.classification\.TirexRFClassifier[^\n]*)(\n)",
             r"\1 {#tirex.models.classification.TirexRFClassifier}\2",
+            text,
+            flags=re.M,
+        )
+        text = re.sub(
+            r"^(### \*class\* tirex\.models\.classification\.TirexGBMClassifier[^\n]*)(\n)",
+            r"\1 {#tirex.models.classification.TirexGBMClassifier}\2",
+            text,
+            flags=re.M,
+        )
+
+    if md_path.name == "tirex.regression.md":
+        text = re.sub(
+            r"^(### \*class\* tirex\.models\.regression\.TirexLinearRegressor[^\n]*)(\n)",
+            r"\1 {#tirex.models.regression.TirexLinearRegressor}\2",
+            text,
+            flags=re.M,
+        )
+        text = re.sub(
+            r"^(### \*class\* tirex\.models\.regression\.TirexRFRegressor[^\n]*)(\n)",
+            r"\1 {#tirex.models.regression.TirexRFRegressor}\2",
+            text,
+            flags=re.M,
+        )
+        text = re.sub(
+            r"^(### \*class\* tirex\.models\.regression\.TirexGBMRegressor[^\n]*)(\n)",
+            r"\1 {#tirex.models.regression.TirexGBMRegressor}\2",
             text,
             flags=re.M,
         )

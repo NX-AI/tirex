@@ -2,11 +2,18 @@
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
 from dataclasses import dataclass
+from typing import TypedDict
 
 import torch
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader, TensorDataset
 
-from .utils import EarlyStopping, set_seed, train_val_split
+from ..util import EarlyStopping, set_seed, train_val_split
+
+
+class TrainingMetrics(TypedDict):
+    train_loss: float
+    val_loss: float
 
 
 @dataclass
@@ -22,11 +29,7 @@ class TrainConfig:
 
     # Loss parameters
     class_weights: torch.Tensor | None
-
-    # Data loading parameters
-    batch_size: int
-    val_split_ratio: float
-    stratify: bool
+    task_type: str
 
     # Earlystopping parameters
     patience: int
@@ -34,6 +37,11 @@ class TrainConfig:
 
     # Reproducability
     seed: int | None
+
+    # Data loading parameters
+    batch_size: int
+    val_split_ratio: float
+    stratify: bool = False
 
     def __post_init__(self) -> None:
         if self.max_epochs <= 0:
@@ -60,6 +68,12 @@ class TrainConfig:
         if self.delta < 0:
             raise ValueError(f"delta must be non-negative, got {self.delta}")
 
+        if self.task_type not in ["classification", "regression"]:
+            raise ValueError(f"task_type must be 'classification' or 'regression', got {self.task_type}")
+
+        if self.stratify and self.task_type == "regression":
+            raise ValueError("stratify=True is not valid for regression tasks")
+
 
 class Trainer:
     def __init__(
@@ -74,14 +88,19 @@ class Trainer:
         class_weights = (
             self.train_config.class_weights.to(self.device) if self.train_config.class_weights is not None else None
         )
-        self.loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights).to(self.device)
+        if self.train_config.task_type == "classification":
+            self.loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights).to(self.device)
+        elif self.train_config.task_type == "regression":
+            self.loss_fn = torch.nn.MSELoss().to(self.device)
+        else:
+            raise ValueError(f"Unsupported task_type: {self.train_config.task_type}")
 
-        self.optimizer = None
+        self.optimizer: Optimizer | None = None
         self.early_stopper = EarlyStopping(patience=self.train_config.patience, delta=self.train_config.delta)
 
     def fit(
         self, train_data: tuple[torch.Tensor, torch.Tensor], val_data: tuple[torch.Tensor, torch.Tensor] | None = None
-    ) -> dict[str, float]:
+    ) -> TrainingMetrics:
         if self.train_config.seed is not None:
             set_seed(self.train_config.seed)
 

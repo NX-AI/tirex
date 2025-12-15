@@ -28,7 +28,7 @@ from aeon.datasets import load_italy_power_demand
 from sklearn.preprocessing import LabelEncoder
 
 # Import TiRex classifiers
-from tirex.models.classification import TirexRFClassifier, TirexClassifierTorch, TirexGBMClassifier
+from tirex.models.classification import TirexRFClassifier, TirexLinearClassifier, TirexGBMClassifier
 
 ```
 
@@ -71,7 +71,7 @@ classifier = TirexRFClassifier(data_augmentation=False, device="cuda:0", n_estim
 ### Option B: Torch Linear Classifier
 
 ```python
-classifier = TirexClassifierTorch(
+classifier = TirexLinearClassifier(
     data_augmentation=False,
     device="cuda:0"
 )

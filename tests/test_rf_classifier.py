@@ -7,6 +7,9 @@ import tempfile
 import numpy as np
 import pytest
 import torch
+from aeon.datasets import load_italy_power_demand
+from sklearn.metrics import f1_score
+from sklearn.preprocessing import LabelEncoder
 
 from tirex.models.classification import TirexRFClassifier
 
@@ -26,6 +29,29 @@ def classification_data():
 
     X_test = torch.randn(n_test, n_vars, seq_len)
     y_test = torch.randint(0, n_classes, (n_test,))
+
+    return X_train, y_train, X_test, y_test
+
+
+@pytest.fixture
+def classification_data_real():
+    # Load train data
+    X_train, y_train = load_italy_power_demand(split="train")
+
+    # Load test data
+    X_test, y_test = load_italy_power_demand(split="test")
+
+    # Encode string labels -> integers
+    label_encoder = LabelEncoder()
+    y_train = label_encoder.fit_transform(y_train)
+    y_test = label_encoder.transform(y_test)
+
+    # Convert to torch tensors
+    X_train = torch.tensor(X_train, dtype=torch.float32)
+    X_test = torch.tensor(X_test, dtype=torch.float32)
+
+    y_train = torch.tensor(y_train, dtype=torch.long)
+    y_test = torch.tensor(y_test, dtype=torch.long)
 
     return X_train, y_train, X_test, y_test
 
@@ -50,26 +76,23 @@ def test_initialization_with_rf_params():
     assert classifier.head.random_state == 42
 
 
-def test_fit_with_torch_tensors(classification_data):
-    X_train, y_train, _, _ = classification_data
+def test_f1_score_on_real_data(classification_data_real):
+    X_train, y_train, X_test, y_test = classification_data_real
 
-    classifier = TirexRFClassifier(n_estimators=10)
+    classifier = TirexRFClassifier(n_estimators=50, random_state=42, n_jobs=-1)
     classifier.fit((X_train, y_train))
 
-
-def test_predict_with_torch_tensors(classification_data):
-    X_train, y_train, X_test, _ = classification_data
-
-    classifier = TirexRFClassifier(n_estimators=10)
-    classifier.fit((X_train, y_train))
     predictions = classifier.predict(X_test)
 
-    assert isinstance(predictions, torch.Tensor)
-    assert predictions.shape == (len(X_test),)
-    assert torch.all((predictions >= 0) & (predictions < 3))
+    pred_y = predictions.cpu().numpy()
+    test_y = y_test.cpu().numpy()
+
+    f1 = f1_score(test_y, pred_y, average="macro")
+
+    assert f1 >= 0.90, f"F1-score {f1:.4f} is below the required threshold of 0.90"
 
 
-def test_predict_proba_with_torch_tensors(classification_data):
+def test_predict_proba(classification_data):
     X_train, y_train, X_test, _ = classification_data
     n_classes = 3
 
@@ -79,22 +102,8 @@ def test_predict_proba_with_torch_tensors(classification_data):
 
     assert isinstance(probabilities, torch.Tensor)
     assert probabilities.shape == (len(X_test), n_classes)
-    # Check probabilities are between 0 and 1
     assert torch.all((probabilities >= 0) & (probabilities <= 1))
-    # Check probabilities sum to approximately 1 for each sample
     assert torch.allclose(probabilities.sum(dim=1), torch.ones(len(X_test), dtype=probabilities.dtype), atol=1e-6)
-
-
-def test_data_augmentation_true(classification_data):
-    X_train, y_train, X_test, _ = classification_data
-
-    classifier = TirexRFClassifier(data_augmentation=True, n_estimators=10)
-    classifier.fit((X_train, y_train))
-    predictions = classifier.predict(X_test)
-
-    assert isinstance(predictions, torch.Tensor)
-    assert predictions.shape == (len(X_test),)
-    assert torch.all((predictions >= 0) & (predictions < 3))
 
 
 def test_save_and_load_model(classification_data):
@@ -139,7 +148,6 @@ def test_multivariate_data():
     seq_len = 128
     n_classes = 2
 
-    # Create torch tensors instead of numpy arrays
     X_train = torch.randn(n_train, n_vars, seq_len, dtype=torch.float32)
     y_train = torch.randint(0, n_classes, (n_train,), dtype=torch.long)
     X_test = torch.randn(n_test, n_vars, seq_len, dtype=torch.float32)

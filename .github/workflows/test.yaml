@@ -18,7 +18,7 @@ jobs:
           # cache: 'pip' # Caching didn't make the CI faster and cache is quite big (4GB)
 
       - name: Install base dependencies
-        run: pip install -e ".[test,gluonts,hfdataset,classification]" --extra-index-url https://download.pytorch.org/whl/cpu
+        run: pip install -e ".[test,gluonts,hfdataset,classification,regression]" --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Run core tests
         run: pytest tests -s
