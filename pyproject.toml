@@ -1,6 +1,6 @@
 [project]
 name = "tirex-ts"
-version = "1.3.0"
+version = "1.4.0"
 authors = [
   { name="Andreas Auer", email="andreas.auer@nx-ai.com" },
   { name="Martin Loretz", email="martin.loretz@nx-ai.com" },
