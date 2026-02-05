@@ -85,6 +85,10 @@ For detailed instructions on using TiRex regression model please visit our [docu
 
 For detailed instructions on building and running TiRex in a Docker container, see the [Docker README](./inference/README.md) or our [deployment documentation](https://nx-ai.github.io/tirex/deployment).
 
+## ONNX Model
+
+TiRex is available as an ONNX model for optimized inference across different hardware platforms and frameworks. See the [ONNX notebook](./examples/tirex_onnx.ipynb) for more details.
+
 ## Finetuning TiRex
 TiRex already provide state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
 
