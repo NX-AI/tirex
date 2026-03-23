@@ -118,8 +118,8 @@ class TiRexEmbedding(nn.Module):
 
         mean_last = last_patch.mean(dim=-1, keepdim=True)
         std_last = last_patch.std(dim=-1, keepdim=True)
-        max_last = last_patch.max(dim=-1, keepdim=True)
-        min_last = last_patch.min(dim=-1, keepdim=True)
+        max_last = last_patch.max(dim=-1, keepdim=True).values
+        min_last = last_patch.min(dim=-1, keepdim=True).values
 
         stats[0] = torch.cat([stats[0], mean_last], dim=-1)
         stats[1] = torch.cat([stats[1], std_last], dim=-1)
