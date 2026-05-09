@@ -146,7 +146,7 @@ If you use TiRex in your research, please cite our work:
   title = {{{TiRex}}: {{Zero-Shot Forecasting Across Long}} and {{Short Horizons}} with {{Enhanced In-Context Learning}}},
   author = {Andreas Auer and Patrick Podest and Daniel Klotz and Sebastian B{\"o}ck and G{\"u}nter Klambauer and Sepp Hochreiter},
   booktitle = {The Thirty-Ninth Annual Conference on Neural Information Processing Systems},
-  year = {2025}
+  year = {2025},
   url = {https://arxiv.org/abs/2505.23719},
 }
 ```
