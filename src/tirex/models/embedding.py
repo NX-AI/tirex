@@ -25,36 +25,50 @@ class TiRexEmbedding(nn.Module):
 
         self.model = load_model(path="NX-AI/TiRex", device=self.device, compile=self._compile)
 
+    def _embed_per_variate(self, data: torch.Tensor) -> torch.Tensor:
+        out = None
+        for v, var_slice in enumerate(torch.unbind(data, dim=1)):
+            emb_v = self._gen_emb_batched(var_slice)  # (bs, n_layer, emb_dim)
+            if out is None:
+                out = torch.empty((data.size(0), data.size(1), *emb_v.shape[1:]), dtype=emb_v.dtype)
+            out[:, v] = emb_v
+        return out
+
     def _gen_emb_batched(self, data: torch.Tensor) -> torch.Tensor:
-        batches = list(torch.split(data, self.batch_size))
-        embedding_list = []
+        batches = torch.split(data, self.batch_size)
+        n_patches = self._calculate_n_patches(data)
+        final_embeddings = None
+        current_idx = 0
+
         for batch in batches:
             embedding = self.model._embed_context(batch)
-            embedding_list.append(embedding.cpu())
-        return torch.cat(embedding_list, dim=0)
+            embedding = embedding[:, -n_patches:, :, :]
+            embedding = torch.mean(embedding, dim=1)  # sequence (patches)
+            if final_embeddings is None:
+                final_embeddings = torch.empty(
+                    (data.size(0), *embedding.shape[1:]),
+                    dtype=embedding.dtype,
+                    device="cpu",
+                )
+
+            batch_size = batch.size(0)
+            final_embeddings[current_idx : current_idx + batch_size] = embedding.cpu()
+            current_idx += batch_size
+
+        return final_embeddings
 
     def _calculate_n_patches(self, data: torch.Tensor) -> int:
-        _, _, n_steps = data.shape
+        _, n_steps = data.shape
         n_patches = -(-n_steps // self.model.config.input_patch_size)
         return n_patches
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
-        n_patches = self._calculate_n_patches(data)
-
-        embedding = torch.stack(
-            [self._gen_emb_batched(var_slice) for var_slice in torch.unbind(data, dim=1)], dim=1
-        )  # Stack in case of multivar
-        embedding = self.process_embedding(embedding, n_patches)
+        embedding = self.process_embedding(self._embed_per_variate(data))
 
         if self.data_augmentation:
             # Difference Embedding
             diff_data = torch.diff(data, dim=-1, prepend=data[..., :0])
-            n_patches = self._calculate_n_patches(diff_data)
-
-            diff_embedding = torch.stack(
-                [self._gen_emb_batched(var_slice) for var_slice in torch.unbind(diff_data, dim=1)], dim=1
-            )
-            diff_embedding = self.process_embedding(diff_embedding, n_patches)
+            diff_embedding = self.process_embedding(self._embed_per_variate(diff_data))
             embedding = torch.cat((diff_embedding, embedding), dim=-1)
 
             # Stats Embedding
@@ -67,10 +81,8 @@ class TiRexEmbedding(nn.Module):
 
         return embedding
 
-    def process_embedding(self, embedding: torch.Tensor, n_patches: int) -> torch.Tensor:
-        # embedding shape: (bs, var_dim, n_patches, n_layer, emb_dim)
-        embedding = embedding[:, :, -n_patches:, :, :]
-        embedding = torch.mean(embedding, dim=2)  # sequence
+    def process_embedding(self, embedding: torch.Tensor) -> torch.Tensor:
+        # embedding shape: (bs, var_dim, n_layer, emb_dim)
         embedding = torch.nn.functional.normalize(embedding, p=2, dim=-1)
         embedding = torch.transpose(embedding, 1, -2).flatten(start_dim=-2)  # var
         embedding = torch.transpose(embedding, 1, -2).flatten(start_dim=-2)  # layer
