@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/tirex-ts?color=blue)](https://pypi.org/project/tirex-ts/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/tirex-ts?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/tirex-ts)
 [![License](https://img.shields.io/badge/license-nxai_community-green)](https://github.com/NX-AI/tirex-internal/blob/main/LICENSE)
-[![docs](https://img.shields.io/website-up-down-green-red/http/nx-ai.github.io/tirex//.svg?label=docs)](https://nx-ai.github.io/tirex/)
+[![docs](https://img.shields.io/website?url=https%3A%2F%2Fnx-ai.github.io%2Ftirex%2F&label=docs&up_message=online&up_color=green&down_message=offline&down_color=red)](https://nx-ai.github.io/tirex/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![formatter: docformatter](https://img.shields.io/badge/formatter-docformatter-fedcba.svg)](https://github.com/PyCQA/docformatter)
 
