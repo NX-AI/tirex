@@ -17,6 +17,10 @@
 This repository provides the pre-trained forecasting model TiRex introduced in the paper
 [TiRex: Zero-Shot Forecasting across Long and Short Horizons with Enhanced In-Context Learning](https://arxiv.org/abs/2505.23719).
 
+> **TiRex-2:** A newer generation of this model is available, extending TiRex with native
+> multivariate forecasting and past/future-known covariates. See the
+> [TiRex-2 repository](https://github.com/NX-AI/tirex-2) and
+> [paper](https://arxiv.org/abs/2607.01204).
 
 ## TiRex Model
 
