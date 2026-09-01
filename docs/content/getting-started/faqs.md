@@ -21,6 +21,7 @@ In the following section, we address common questions and potential issues you m
   - Enable model compilation when loading the model.
   - Use hardware acceleration devices like CUDA (for NVIDIA GPUs) or MPS (for Apple Silicon) whenever possible.
   - For maximum speed, consider using our custom backends.
+  - Trade accuracy for speed with `model.forecast(..., full_rollout=True)` (predicts the whole horizon in one forward pass) or `dynamic_padding=True` (pads short contexts to the next patch instead of the full training context length). See the [forecasting workflow](../how-to/forecasting/workflow.md).
 
   For detailed instructions on optimization, please refer to the API.
   If you are interested in optimizing TiRex for dedicated hardware platforms (especially for edge or embedded use cases), please get in touch: [contact@nx-ai.com](mailto:contact@nx-ai.com)

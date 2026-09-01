@@ -209,6 +209,8 @@ class ForecastModel(ABC):
         batch_size: int = 512,
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
+        full_rollout: bool = False,
+        dynamic_padding: bool = False,
         **predict_kwargs,
     ):
         """
@@ -231,6 +233,18 @@ class ForecastModel(ABC):
 
             resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
                                                 If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            full_rollout (bool, optional): How the forecast horizon is generated:
+                - `False`: One patch is predicted per forward pass.
+                - `True`: The whole horizon is predicted in a single forward pass. This is faster for
+                  horizons longer than one patch, but forecasting quality might degrade as the horizon grows.
+                Defaults to `False`.
+
+            dynamic_padding (bool, optional): How the context is padded before each forward pass:
+                - `False`: The context is padded to the full training context length.
+                - `True`: The context is padded to the smallest multiple of the patch size that fits it.
+                  This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
                               prediction mechanism of the pre-trained model. Refer to the model's
@@ -261,6 +275,8 @@ class ForecastModel(ABC):
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,
+            full_rollout=full_rollout,
+            dynamic_padding=dynamic_padding,
             **predict_kwargs,
         )
 
@@ -272,6 +288,8 @@ class ForecastModel(ABC):
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
         data_kwargs: dict = {},
+        full_rollout: bool = False,
+        dynamic_padding: bool = False,
         **predict_kwargs,
     ):
         """
@@ -294,6 +312,18 @@ class ForecastModel(ABC):
 
             resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
                                                 If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            full_rollout (bool, optional): How the forecast horizon is generated:
+                - `False`: One patch is predicted per forward pass.
+                - `True`: The whole horizon is predicted in a single forward pass. This is faster for
+                    horizons longer than one patch, but forecasting quality might degrade as the horizon grows.
+                Defaults to `False`.
+
+            dynamic_padding (bool, optional): How the context is padded before each forward pass:
+                - `False`: The context is padded to the full training context length.
+                - `True`: The context is padded to the smallest multiple of the patch size that fits it.
+                    This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
                               prediction mechanism of the pre-trained model. Refer to the model's
@@ -329,6 +359,8 @@ class ForecastModel(ABC):
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,
+            full_rollout=full_rollout,
+            dynamic_padding=dynamic_padding,
             **predict_kwargs,
         )
 
@@ -340,6 +372,8 @@ class ForecastModel(ABC):
         yield_per_batch: bool = False,
         resample_strategy: Literal["frequency"] | None = None,
         data_kwargs: dict = {},
+        full_rollout: bool = False,
+        dynamic_padding: bool = False,
         **predict_kwargs,
     ):
         """
@@ -362,6 +396,18 @@ class ForecastModel(ABC):
 
             resample_strategy (Optional[str], optional): Choose a resampling strategy. Allowed values: "frequency".
                                                 If `None`, no resampling is applied. Currently only "frequency" is supported.
+
+            full_rollout (bool, optional): How the forecast horizon is generated:
+                - `False`: One patch is predicted per forward pass.
+                - `True`: The whole horizon is predicted in a single forward pass. This is faster for
+                    horizons longer than one patch, but forecasting quality might degrade as the horizon grows.
+                Defaults to `False`.
+
+            dynamic_padding (bool, optional): How the context is padded before each forward pass:
+                - `False`: The context is padded to the full training context length.
+                - `True`: The context is padded to the smallest multiple of the patch size that fits it.
+                    This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
                               prediction mechanism of the pre-trained model. Refer to the model's
@@ -399,5 +445,7 @@ class ForecastModel(ABC):
             yield_per_batch,
             resample_strategy=resample_strategy,
             max_context=self.max_context_length,
+            full_rollout=full_rollout,
+            dynamic_padding=dynamic_padding,
             **predict_kwargs,
         )
