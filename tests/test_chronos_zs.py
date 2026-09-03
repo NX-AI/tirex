@@ -20,7 +20,7 @@ def geometric_mean(s):
 def eval_task(model, task):
     inference_time = 0.0
     predictions_per_window = []
-    for window in task.iter_windows(trust_remote_code=True):
+    for window in task.iter_windows():
         past_data, _ = fev.convert_input_data(window, adapter="datasets", as_univariate=True)
         past_data = past_data.with_format("torch").cast_column("target", datasets.Sequence(datasets.Value("float32")))
         loaded_targets = [t for t in past_data["target"]]
