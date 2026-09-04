@@ -35,15 +35,15 @@ model = load_model("NX-AI/TiRex")
 quantiles, mean = model.forecast(
     context,                 # tensor/array [batch, time]
     prediction_length=64,    # number of steps to forecast
-    full_rollout=False,      # predict the whole horizon in one forward pass
-    dynamic_padding=False,   # pad the context to the next patch instead of the full training context
+    full_rollout=False,      # when True, predict the horizon in one forward pass
+    dynamic_padding=False,   # when True, pad the context to the next patch multiple only
 )
 ```
 
 - **Quantiles**: by default nine quantiles (0.1…0.9) as reported in the paper are returned.
 - **Batching**: large batches improve throughput; keep an eye on memory if prediction length is long.
-- **`full_rollout`**: TiRex forecasts in patches of 32 steps. By default a longer horizon is rolled out one patch per forward pass; with `full_rollout=True` the whole horizon comes out of a single pass. Faster for long horizons, but forecast quality might degrade as the horizon grows.
-- **`dynamic_padding`**: by default the context is padded to the full training context length (2,048 steps) before every forward pass. With `dynamic_padding=True` it is padded only to the next multiple of the patch size, which is markedly faster for short histories. Forecasting quality might degrade, so check accuracy on your data before enabling it.
+- **`full_rollout`**: TiRex forecasts in patches of 32 steps. By default a longer horizon is rolled out one patch per forward pass. Set to `True` to predict the entire horizon in a single forward pass. Faster for long horizons, but forecast quality might degrade as the horizon grows.
+- **`dynamic_padding`**: by default the context is padded to the full training context length (2,048 steps) before every forward pass. Set to `True` to pad the context only to the next multiple of the patch size. Markedly faster for short contexts, but forecasting quality might degrade.
 
 Both options default to the standard behaviour and are available on `forecast`, `forecast_gluon`, and `forecast_hfdata`.
 

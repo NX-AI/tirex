@@ -243,7 +243,7 @@ class ForecastModel(ABC):
             dynamic_padding (bool, optional): How the context is padded before each forward pass:
                 - `False`: The context is padded to the full training context length.
                 - `True`: The context is padded to the smallest multiple of the patch size that fits it.
-                  This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                  This is faster for contexts shorter than the training context length, but forecasting quality might degrade.
                 Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
@@ -322,7 +322,7 @@ class ForecastModel(ABC):
             dynamic_padding (bool, optional): How the context is padded before each forward pass:
                 - `False`: The context is padded to the full training context length.
                 - `True`: The context is padded to the smallest multiple of the patch size that fits it.
-                    This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                    This is faster for contexts shorter than the training context length, but forecasting quality might degrade.
                 Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
@@ -406,7 +406,7 @@ class ForecastModel(ABC):
             dynamic_padding (bool, optional): How the context is padded before each forward pass:
                 - `False`: The context is padded to the full training context length.
                 - `True`: The context is padded to the smallest multiple of the patch size that fits it.
-                    This is faster for contexts shorter than the training context length, but but forecasting quality might degrade.
+                    This is faster for contexts shorter than the training context length, but forecasting quality might degrade.
                 Defaults to `False`.
 
             **predict_kwargs: Additional keyword arguments that are passed directly to the underlying
