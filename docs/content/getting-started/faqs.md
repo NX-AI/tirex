@@ -23,6 +23,16 @@ In the following section, we address common questions and potential issues you m
   - For maximum speed, consider using our custom backends.
   - Trade accuracy for speed with `model.forecast(..., full_rollout=True)` (predicts the whole horizon in one forward pass) or `dynamic_padding=True` (pads short contexts to the next patch instead of the full training context length). See the [forecasting workflow](../how-to/forecasting/workflow.md).
 
+  A quick estimation of the speed–accuracy trade-off (Setting: batch size 5, context length 128, prediction length 64, `torch` backend, average of 50 calls; MASE and CRPS are lower-is-better):
+
+  | Option | CPU | GPU | MASE (Gifteval) | CRPS (Gifteval) |
+  | --- | --- | --- | --- | --- |
+  | Default (both off) | 416 ms | 233 ms | 0.724 | 0.499 |
+  | `full_rollout=True` | 223 ms (~1.9x) | 116 ms (~2.0x) | 0.753 (+4%) | 0.519 (+4%) |
+  | `dynamic_padding=True` | 44 ms (~9x) | 30 ms (~8x) | 0.734 (+1.5%) | 0.508 (+2%) |
+
+  The speedup from `dynamic_padding` shrinks as your context approaches the full 2,048 steps, and the accuracy cost of `full_rollout` grows with the prediction length. More detailed analysis and full setup can be seen in: [PR #34](https://github.com/NX-AI/tirex/pull/34).
+
   For detailed instructions on optimization, please refer to the API.
   If you are interested in optimizing TiRex for dedicated hardware platforms (especially for edge or embedded use cases), please get in touch: [contact@nx-ai.com](mailto:contact@nx-ai.com)
 </details>
