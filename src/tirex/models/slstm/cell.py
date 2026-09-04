@@ -141,10 +141,8 @@ class sLSTMCellTorch:
         output = []
         for i in range(S):
             Ry = (
-                states[0]
-                .reshape(B, num_heads, 1, -1)
-                .matmul(R.unsqueeze(0))
-                .reshape(B, num_heads, num_gates, -1)
+                torch.einsum("bhd,hdn->bhn", states[0].view(B, num_heads, -1), R)
+                .view(B, num_heads, num_gates, -1)
                 .transpose(1, 2)
                 .reshape(B, -1)
             )
