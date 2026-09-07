@@ -2,6 +2,7 @@
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
 import logging
+import math
 from dataclasses import dataclass
 
 import torch
@@ -83,12 +84,24 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         context: torch.Tensor,
         prediction_length: int | None = None,
         output_device: str = "cpu",
-        max_accelerated_rollout_steps: int = 1,
+        full_rollout: bool = False,
+        dynamic_padding: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         device = self.input_patch_embedding.hidden_layer.weight.device
         context = context.to(device)
 
-        quantiles = self._forecast_tensor(context, prediction_length, new_patch_count=max_accelerated_rollout_steps)
+        max_accelerated_rollout_steps = (
+            math.ceil((prediction_length or self.tokenizer.patch_size) / self.tokenizer.patch_size)
+            if full_rollout
+            else 1
+        )
+
+        quantiles = self._forecast_tensor(
+            context,
+            prediction_length,
+            new_patch_count=max_accelerated_rollout_steps,
+            dynamic_padding=dynamic_padding,
+        )
         quantiles = quantiles.to(torch.device(output_device)).swapaxes(1, 2)
 
         mean = quantiles[:, :, self.config.quantiles.index(0.5)].squeeze(-1)  # median as mean
@@ -99,6 +112,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         context: torch.Tensor,
         prediction_length: int | None = None,
         new_patch_count: int = 1,
+        dynamic_padding: bool = False,
     ) -> torch.Tensor:
         predictions = []
         if prediction_length is None:
@@ -111,7 +125,7 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
         context = context.to(dtype=torch.float32)
         while remaining > 0:
             new_patch_count = min(remaining, new_patch_count)
-            prediction = self._forecast_single_step(context, new_patch_count)
+            prediction = self._forecast_single_step(context, new_patch_count, dynamic_padding=dynamic_padding)
 
             predictions.append(prediction)
             remaining -= new_patch_count
@@ -123,9 +137,19 @@ class TiRexZero(nn.Module, PretrainedModel, ForecastModel):
 
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)
 
-    def _forecast_single_step(self, context: torch.Tensor, new_patch_count: int = 1) -> torch.Tensor:
-        max_context, min_context = self.config.train_ctx_len, self.config.train_ctx_len
-        context, _ = self._adjust_context_length(context, max_context, min_context)
+    def _forecast_single_step(
+        self, context: torch.Tensor, new_patch_count: int = 1, dynamic_padding: bool = False
+    ) -> torch.Tensor:
+        max_context = self.config.train_ctx_len
+        if dynamic_padding:
+            # pad only up to the smallest multiple of the patch size that fits the actual context
+            min_context = min(
+                max_context, math.ceil(context.shape[-1] / self.tokenizer.patch_size) * self.tokenizer.patch_size
+            )
+        else:
+            min_context = max_context
+
+        context, _ = self._adjust_context_length(context, min_context, max_context)
         input_token, tokenizer_state = self.tokenizer.input_transform(context)
         prediction = self._forward_model_tokenized(input_token=input_token, new_patch_count=new_patch_count)
         predicted_token = prediction[:, :, -new_patch_count:, :].to(input_token)  # predicted token

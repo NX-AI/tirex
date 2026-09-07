@@ -1,6 +1,8 @@
 # Copyright (c) NXAI GmbH.
 # This software may be used and distributed according to the terms of the NXAI Community License Agreement.
 
+import inspect
+
 import numpy as np
 import pytest
 import torch
@@ -94,3 +96,33 @@ def test_forecast_iterator_mode():
         else:
             assert q.shape == (1, 10, 9)
             assert m.shape == (1, 10)
+
+
+# ----- Tests: forecast options -----
+class OptionRecordingForecaster(ForecastModel):
+    def __init__(self):
+        self.seen_kwargs = []
+
+    def _forecast_quantiles(self, batch: torch.Tensor, **kwargs):
+        self.seen_kwargs.append(kwargs)
+        return fc_random_from_tensor(batch, **kwargs)
+
+
+def test_forecast_option_defaults_are_forwarded():
+    model = OptionRecordingForecaster()
+    model.forecast(torch.rand((2, 20)), prediction_length=10)
+    assert model.seen_kwargs == [{"prediction_length": 10, "full_rollout": False, "dynamic_padding": False}]
+
+
+def test_forecast_options_are_forwarded():
+    model = OptionRecordingForecaster()
+    model.forecast(torch.rand((2, 20)), prediction_length=10, full_rollout=True, dynamic_padding=True)
+    assert model.seen_kwargs == [{"prediction_length": 10, "full_rollout": True, "dynamic_padding": True}]
+
+
+@pytest.mark.parametrize("fc_method", ["forecast", "forecast_gluon", "forecast_hfdata"])
+@pytest.mark.parametrize("option", ["full_rollout", "dynamic_padding"])
+def test_forecast_options_are_public_parameters(fc_method, option):
+    parameter = inspect.signature(getattr(ForecastModel, fc_method)).parameters.get(option)
+    assert parameter is not None, f"{fc_method} does not expose {option}"
+    assert parameter.default is False

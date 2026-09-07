@@ -21,6 +21,17 @@ In the following section, we address common questions and potential issues you m
   - Enable model compilation when loading the model.
   - Use hardware acceleration devices like CUDA (for NVIDIA GPUs) or MPS (for Apple Silicon) whenever possible.
   - For maximum speed, consider using our custom backends.
+  - Trade some accuracy for speed with `full_rollout=True` or `dynamic_padding=True`. See the [forecasting workflow](../how-to/forecasting/workflow.md).
+
+  Example results for batch size 5, context length 128, and prediction length 64 using the `torch` backend (50-call average; lower MASE and CRPS are better):
+
+  | Option | CPU | GPU | MASE (GiftEval) | CRPS (GiftEval) |
+  | --- | --- | --- | --- | --- |
+  | Default | 416 ms | 233 ms | 0.724 | 0.499 |
+  | `full_rollout` | 223 ms (1.9×) | 116 ms (2.0×) | 0.753 (+4%) | 0.519 (+4%) |
+  | `dynamic_padding` | 44 ms (9×) | 30 ms (8×) | 0.734 (+1.5%) | 0.508 (+2%) |
+
+  `dynamic_padding` helps less near the 2,048-step context limit, while `full_rollout` loses more accuracy at longer prediction lengths. See [PR #34](https://github.com/NX-AI/tirex/pull/34) for details.
 
   For detailed instructions on optimization, please refer to the API.
   If you are interested in optimizing TiRex for dedicated hardware platforms (especially for edge or embedded use cases), please get in touch: [contact@nx-ai.com](mailto:contact@nx-ai.com)
