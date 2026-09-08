@@ -139,12 +139,17 @@ class sLSTMCellTorch:
 
         states = states.to(R.dtype).unbind(dim=0)
         output = []
+        head_dim = R.shape[1]
+
         for i in range(S):
             Ry = (
-                torch.einsum("bhd,hdn->bhn", states[0].view(B, num_heads, -1), R)
-                .view(B, num_heads, num_gates, -1)
-                .transpose(1, 2)
-                .reshape(B, -1)
+                states[0]
+                .view(B, num_heads, head_dim)
+                .transpose(0, 1)  
+                .bmm(R) 
+                .view(num_heads, B, num_gates, head_dim)
+                .permute(1, 2, 0, 3)  
+                .reshape(B, -1) 
             )
             states = sLSTMCellTorch.slstm_forward_pointwise(
                 x[i].float(), Ry.float(), b.float(), [s.float() for s in states]
