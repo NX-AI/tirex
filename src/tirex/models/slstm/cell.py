@@ -179,7 +179,7 @@ class sLSTMCellTorch:
 
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
         logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
-        if n_all_zero is None:  # a caller that predates this argument
+        if n_all_zero is None:  
             n_all_zero = bool(torch.all(n == 0.0))
         mnew = iraw if n_all_zero else torch.max(iraw, logfplusm)  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
