@@ -170,7 +170,7 @@ class sLSTMCellTorch:
         Ry: torch.Tensor,  # dim [B, 4*H]
         b: torch.Tensor,  # dim [1, 4*H]
         states: torch.Tensor,  # dim 4 x [B, H]
-        n_all_zero: bool | None = None, 
+        n_all_zero: bool, 
     ) -> list[torch.Tensor]:
         y, c, n, m = states
 
@@ -178,9 +178,8 @@ class sLSTMCellTorch:
         iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
 
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
-        logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
-        if n_all_zero is None:  
-            n_all_zero = bool(torch.all(n == 0.0))
+        logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals 
+        
         mnew = iraw if n_all_zero else torch.max(iraw, logfplusm)  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
         igate = torch.exp(torch.clamp(iraw - mnew, max=0))  # eq 16
