@@ -146,23 +146,25 @@ class sLSTMCellTorch:
         output = x.new_empty((S, B, H), dtype=R.dtype)
         for i in range(S):
             Ry = (
-                y
-                .view(B, num_heads, head_dim)
-                .transpose(0, 1)  
-                .bmm(R) 
+                y.view(B, num_heads, head_dim)
+                .transpose(0, 1)
+                .bmm(R)
                 .view(num_heads, B, num_gates, head_dim)
-                .permute(1, 2, 0, 3)  
-                .reshape(B, -1) 
+                .permute(1, 2, 0, 3)
+                .reshape(B, -1)
             )
             y, c, n, m = sLSTMCellTorch.slstm_forward_pointwise(
-                x[i].float(), Ry.float(), b, [y, c.float(), n.float(), m.float()],
+                x[i].float(),
+                Ry.float(),
+                b,
+                [y, c.float(), n.float(), m.float()],
                 n_all_zero=n_all_zero and i == 0,
             )
 
             y, c, n, m = (t.to(dtype=R.dtype) for t in (y, c, n, m))
             output[i] = y
 
-        return output, torch.stack([y,c,n,m])  # (S, B, H), 4 x (B, H)
+        return output, torch.stack([y, c, n, m])  # (S, B, H), 4 x (B, H)
 
     @staticmethod
     def slstm_forward_pointwise(
@@ -170,7 +172,7 @@ class sLSTMCellTorch:
         Ry: torch.Tensor,  # dim [B, 4*H]
         b: torch.Tensor,  # dim [1, 4*H]
         states: torch.Tensor,  # dim 4 x [B, H]
-        n_all_zero: bool, 
+        n_all_zero: bool,
     ) -> list[torch.Tensor]:
         y, c, n, m = states
 
@@ -178,12 +180,12 @@ class sLSTMCellTorch:
         iraw, fraw, zraw, oraw = torch.unbind(raw.view(raw.shape[0], 4, -1), dim=1)
 
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
-        logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals 
-        
+        logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
+
         mnew = iraw if n_all_zero else torch.max(iraw, logfplusm)  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
         igate = torch.exp(torch.clamp(iraw - mnew, max=0))  # eq 16
-        fgate = torch.exp(torch.clamp(logfplusm - mnew,max=0))  # eq 17
+        fgate = torch.exp(torch.clamp(logfplusm - mnew, max=0))  # eq 17
         zgate = torch.tanh(zraw)  # eq 11
         cnew = fgate * c + igate * zgate  # eq 8
         nnew = fgate * n + igate  # eq 9
