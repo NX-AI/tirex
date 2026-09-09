@@ -141,7 +141,7 @@ class sLSTMCellTorch:
         head_dim = R.shape[1]
 
         b = b.float()
-        n_all_zero = bool(torch.all(n == 0.0))
+        n_all_zero = torch.all(n == 0.0)
 
         output = x.new_empty((S, B, H), dtype=R.dtype)
         for i in range(S):
@@ -158,7 +158,7 @@ class sLSTMCellTorch:
                 Ry.float(),
                 b,
                 [y, c.float(), n.float(), m.float()],
-                n_all_zero=n_all_zero and i == 0,
+                n_all_zero=n_all_zero if i == 0 else None,
             )
 
             y, c, n, m = (t.to(dtype=R.dtype) for t in (y, c, n, m))
@@ -172,7 +172,7 @@ class sLSTMCellTorch:
         Ry: torch.Tensor,  # dim [B, 4*H]
         b: torch.Tensor,  # dim [1, 4*H]
         states: torch.Tensor,  # dim 4 x [B, H]
-        n_all_zero: bool,
+        n_all_zero: torch.Tensor | None,
     ) -> list[torch.Tensor]:
         y, c, n, m = states
 
@@ -182,7 +182,10 @@ class sLSTMCellTorch:
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
         logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
 
-        mnew = iraw if n_all_zero else torch.max(iraw, logfplusm)  # eq 15
+        if n_all_zero is None:
+            mnew = torch.max(iraw, logfplusm)  # eq 15
+        else:
+            mnew = torch.where(n_all_zero, iraw, torch.max(iraw, logfplusm))  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
         igate = torch.exp(torch.clamp(iraw - mnew, max=0))  # eq 16
         fgate = torch.exp(torch.clamp(logfplusm - mnew, max=0))  # eq 17
