@@ -67,6 +67,7 @@ const sidebars = {
     // DEPLOYMENT
     { type: 'html', value: 'DEPLOYMENT', className: 'sidebarHeading' },
     { type: 'doc', id: 'deployment/index', className: 'icon-deploy' },
+    { type: 'doc', id: 'intended-use/index', className: 'icon-docs' },
 
     // CONTRIBUTING
     { type: 'html', value: 'CONTRIBUTING', className: 'sidebarHeading' },
