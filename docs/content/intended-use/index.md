@@ -1,0 +1,3 @@
+# Intended Use and Limitations
+
+This release supports time-series forecasting, classification, and regression as documented on this site. High-risk applications under EU AI Act Article 6 are outside NXAI's intended purpose. NXAI has not validated this release for high-risk compliance. Users and integrators must assess suitability and meet their legal obligations. Unlawful uses, including those prohibited by EU AI Act Article 5, are not permitted. See the [Intended Use Notice](https://github.com/NX-AI/tirex/blob/main/INTENDED_USE.md) for details. It does not change the licence or statutory obligations.
