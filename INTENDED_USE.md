@@ -82,3 +82,7 @@ Each actor remains responsible for obligations applicable to its own role. NXAI'
 - **VAT ID:** ATU80117419
 - **Website:** <https://www.nx-ai.com>
 - **Contact:** <contact@nx-ai.com>
+
+## 9. Acknowledgement
+
+This content has been advised by and developed in collaboration with the EUSAiR project team as part of a simulation of AI regulatory sandboxes, in which NXAI participated. EUSAiR is a CSA project funded by the European Commission, designed to assist the AI Office and National Competent Authorities in the planning and establishment of AI regulatory sandboxes. For more information, please visit the website: [eusair-project.eu](https://eusair-project.eu/)
