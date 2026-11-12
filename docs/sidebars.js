@@ -31,7 +31,6 @@ const sidebars = {
         { type: 'doc', id: 'how-to/forecasting/practice', className: 'icon-practice' },
       ],
     },
-    { type: 'doc', id: 'how-to/anomaly', className: 'icon-eval' },
     {
       type: 'category',
       label: 'Classification',

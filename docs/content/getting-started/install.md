@@ -18,6 +18,6 @@ pip install 'tirex-ts[all]'
 TiRex is currently only tested on Linux and MacOS.
 
 ## Requirements
-- Use Python 3.11+ for best compatibility.
+- Python 3.10 or newer.
 - PyTorch installed (CUDA optional).
 - For Hugging Face model download, outbound network access or pre-downloaded cache.

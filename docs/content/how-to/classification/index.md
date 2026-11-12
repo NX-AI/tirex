@@ -55,7 +55,7 @@ If you use TiRex for Time Series Classification in your research, please cite ou
 ```bibtex
 @inproceedings{auer:25tirexclassification,
     title = {Pre-trained Forecasting Models: Strong Zero-Shot Feature Extractors for Time Series Classification},
-    author = {Andreas Auer and Daniel Klotz and Sebastinan B{\"o}ck and Sepp Hochreiter},
+    author = {Andreas Auer and Daniel Klotz and Sebastian B{\"o}ck and Sepp Hochreiter},
     booktitle = {NeurIPS 2025 Workshop on Recent Advances in Time Series Foundation Models (BERT2S)},
     year = {2025},
     url = {https://arxiv.org/abs/2510.26777},
