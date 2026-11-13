@@ -36,7 +36,7 @@ TiRex is a 35M parameter pre-trained time series forecasting model based on [xLS
 
 - **State-of-the-art Performance over Long and Short Horizons**:
   TiRex achieves top scores in various time series forecasting benchmarks, see [GiftEval](https://huggingface.co/spaces/Salesforce/GIFT-Eval) and [ChronosZS](https://huggingface.co/spaces/autogluon/fev-leaderboard).
-  These benchmark show that TiRex provides great performance for both long and short-term forecasting.
+  These benchmarks show that TiRex provides great performance for both long and short-term forecasting.
 
 ## Documentation
 A detailed documentation of TiRex can be found here: https://nx-ai.github.io/tirex/
@@ -71,7 +71,7 @@ quantiles, mean = model.forecast(context=data, prediction_length=64)
 ```
 
 We provide an extended quick start example in [examples/quick_start_tirex.ipynb](./examples/quick_start_tirex.ipynb).
-This notebook also shows how to use the different input and output types of you time series data.
+This notebook also shows how to use the different input and output types of your time series data.
 You can also run it in [Google Colab](https://colab.research.google.com/github/NX-AI/tirex/blob/main/examples/quick_start_tirex.ipynb).
 
 We provide notebooks to run the benchmarks: [GiftEval](./examples/gifteval/gifteval.ipynb) and [Chronos-ZS](./examples/chronos_zs/chronos_zs.ipynb).
@@ -91,17 +91,17 @@ For detailed instructions on building and running TiRex in a Docker container, s
 
 ## ONNX Model
 
-TiRex is available as an ONNX model for optimized inference across different hardware platforms and frameworks. See the [ONNX notebook](./examples/tirex_onnx.ipynb) for more details.
+TiRex is available as an ONNX model (`tirex.onnx` on [Hugging Face](https://huggingface.co/NX-AI/TiRex)) for optimized inference across different hardware platforms and frameworks. See the [ONNX notebook](./examples/tirex_onnx.ipynb) for more details.
 
 ## Finetuning TiRex
-TiRex already provide state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
+TiRex already provides state-of-the-art performance for zero-shot prediction. Hence, you can use it without training on your own data.
 
 If you are interested in models fine-tuned on your data or with different pretraining, please contact us at [contact@nx-ai.com](mailto:contact@nx-ai.com)
 
 
 ## CUDA Kernels
 
-Tirex can use custom CUDA kernels for the sLSTM cells.
+TiRex can use custom CUDA kernels for the sLSTM cells.
 These CUDA kernels are compiled when the model is loaded the first time.
 The CUDA kernels require GPU hardware that support CUDA compute capability 8.0 or later.
 We also highly suggest to use the provided [conda environment spec](./requirements_cu124.yaml).
@@ -157,7 +157,7 @@ If you use TiRex in your research, please cite our work:
 ```bibtex
 @inproceedings{auer:25tirexclassification,
     title = {Pre-trained Forecasting Models: Strong Zero-Shot Feature Extractors for Time Series Classification},
-    author = {Andreas Auer and Daniel Klotz and Sebastinan B{\"o}ck and Sepp Hochreiter},
+    author = {Andreas Auer and Daniel Klotz and Sebastian B{\"o}ck and Sepp Hochreiter},
     booktitle = {NeurIPS 2025 Workshop on Recent Advances in Time Series Foundation Models (BERT2S)},
     year = {2025},
     url = {https://arxiv.org/abs/2510.26777},

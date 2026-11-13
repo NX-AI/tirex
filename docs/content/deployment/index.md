@@ -69,7 +69,7 @@ console.log(await data.json());
 
 Every request is batched, so provide a list of timeseries as context, even when you only forecast a single timeseries. Bigger batch sizes are more efficient for the hardware, but too big batch sizes can lead to out of memory errors. There isn't any internal batching done, so the consumer of the API is responsible to call with an appropriate batch size for the hardware.
 
-The HTTP API also provides a second endpoint `/forecast/quantiles`, where the 10, 20, 30, 50 (mean), 60, 70, 80 and 90% quantiles are returned, using the same arguments as the `/forecast/mean` endpoint.
+The HTTP API also provides a second endpoint `/forecast/quantiles`, where the 10, 20, 30, 40, 50 (median), 60, 70, 80 and 90% quantiles are returned, using the same arguments as the `/forecast/mean` endpoint.
 
 ### MQTT API
 To use the MQTT API, you need an appropriate MQTT broker running. For some quick testing, a public test MQTT broker like [broker.emqx.io](https://broker.emqx.io) works (Do not send sensitive data to a public broker!). For testing we also use the [MQTTX CLI](https://mqttx.app/cli)
@@ -124,5 +124,16 @@ You can set these env variables when running the container using the -e env flag
 For more information about building and testing the containers, have a look at the [docker readme](https://github.com/NX-AI/tirex/blob/main/inference/README.md).
 
 
-## ONNX Export
-- An ONNX build of TiRex is currently in progress and will be published here once it is ready.
+## ONNX Model
+
+TiRex is available as an ONNX model, `tirex.onnx`, in the [Hugging Face repository](https://huggingface.co/NX-AI/TiRex). It runs with only `numpy` and `onnxruntime`, so PyTorch is not required for inference.
+
+```sh
+pip install numpy onnxruntime huggingface_hub
+```
+
+See the [ONNX notebook](https://github.com/NX-AI/tirex/blob/main/examples/tirex_onnx.ipynb) for a complete example, including custom `onnxruntime` session options and running on different execution providers.
+
+:::note
+The ONNX model might not give exactly the same results as the PyTorch version, because a bfloat16 matmul is currently not implemented in ONNX Runtime ([onnxruntime#26311](https://github.com/microsoft/onnxruntime/issues/26311)).
+:::
