@@ -137,22 +137,34 @@ class sLSTMCellTorch:
         H = R.shape[1] * num_heads
         assert states.shape == (num_gates, B, H)
 
-        states = states.to(R.dtype).unbind(dim=0)
-        output = []
+        y, c, n, m = states.to(R.dtype).unbind(dim=0)
+        head_dim = R.shape[1]
+
+        b = b.float()
+        n_all_zero = torch.all(n == 0.0)
+
+        output = x.new_empty((S, B, H), dtype=R.dtype)
         for i in range(S):
             Ry = (
-                torch.einsum("bhd,hdn->bhn", states[0].view(B, num_heads, -1), R)
-                .view(B, num_heads, num_gates, -1)
-                .transpose(1, 2)
+                y.view(B, num_heads, head_dim)
+                .transpose(0, 1)
+                .bmm(R)
+                .view(num_heads, B, num_gates, head_dim)
+                .permute(1, 2, 0, 3)
                 .reshape(B, -1)
             )
-            states = sLSTMCellTorch.slstm_forward_pointwise(
-                x[i].float(), Ry.float(), b.float(), [s.float() for s in states]
+            y, c, n, m = sLSTMCellTorch.slstm_forward_pointwise(
+                x[i].float(),
+                Ry.float(),
+                b,
+                [y, c.float(), n.float(), m.float()],
+                n_all_zero=n_all_zero if i == 0 else None,
             )
-            states = [s.to(dtype=R.dtype) for s in states]
-            output.append(states[0])
 
-        return torch.stack(output), torch.stack(states)  # (S, B, H), 4 x (B, H)
+            y, c, n, m = (t.to(dtype=R.dtype) for t in (y, c, n, m))
+            output[i] = y
+
+        return output, torch.stack([y, c, n, m])  # (S, B, H), 4 x (B, H)
 
     @staticmethod
     def slstm_forward_pointwise(
@@ -160,6 +172,7 @@ class sLSTMCellTorch:
         Ry: torch.Tensor,  # dim [B, 4*H]
         b: torch.Tensor,  # dim [1, 4*H]
         states: torch.Tensor,  # dim 4 x [B, H]
+        n_all_zero: torch.Tensor | None,
     ) -> list[torch.Tensor]:
         y, c, n, m = states
 
@@ -168,10 +181,14 @@ class sLSTMCellTorch:
 
         # Equations reference the xlstm paper on page 4: https://arxiv.org/pdf/2405.04517
         logfplusm = m + F.logsigmoid(torch.clamp(fraw, max=15))  # eq 15 # Clamp to avoid subnomals
-        mnew = torch.where(torch.all(n == 0.0), iraw, torch.max(iraw, logfplusm))  # eq 15
+
+        if n_all_zero is None:
+            mnew = torch.max(iraw, logfplusm)  # eq 15
+        else:
+            mnew = torch.where(n_all_zero, iraw, torch.max(iraw, logfplusm))  # eq 15
         ogate = torch.sigmoid(oraw)  # eq 14
-        igate = torch.minimum(torch.exp(iraw - mnew), torch.ones_like(iraw))  # eq 16
-        fgate = torch.minimum(torch.exp(logfplusm - mnew), torch.ones_like(iraw))  # eq 17
+        igate = torch.exp(torch.clamp(iraw - mnew, max=0))  # eq 16
+        fgate = torch.exp(torch.clamp(logfplusm - mnew, max=0))  # eq 17
         zgate = torch.tanh(zraw)  # eq 11
         cnew = fgate * c + igate * zgate  # eq 8
         nnew = fgate * n + igate  # eq 9
